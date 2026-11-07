@@ -1,0 +1,333 @@
+<title>Building 05 · Layout R6</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: drawing-paper page. Title block, then the plan with the material route drawing itself step by step
+   beside the step list, then the 21 sheets of the R6 set. One committed light look, matching the drawings. */
+:root{
+  --paper:#f4f5f2; --sheet:#ffffff; --ink:#1d2427; --slate:#5a6764; --mute:#7c8784; --line:#d6dbd8;
+  --route:#dd4a16; --navy:#16324f; --sage:#5f7a68; --sand:#efe8d8;
+  --cond:"Barlow Semi Condensed","Arial Narrow","Helvetica Neue",Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --gut:max(16px,env(safe-area-inset-left,0px)); --gut-r:max(16px,env(safe-area-inset-right,0px));
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 var(--cond);-webkit-font-smoothing:antialiased;overflow-x:clip}
+img{display:block;max-width:100%}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--route);outline-offset:3px}
+h1,h2,h3{margin:0;line-height:1.05;text-wrap:balance}
+p{margin:0}
+.wrap{max-width:1280px;margin:0 auto;padding-left:var(--gut);padding-right:var(--gut)}
+.mono{font-family:var(--mono)}
+.lbl{font:600 11px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--slate)}
+
+/* title block */
+.tb{background:var(--navy);color:#eef2f4}
+.tb .wrap{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px 40px;align-items:end;padding-block:30px 26px}
+.tb .lbl{color:#9fb3c4}
+.tb h1{font-size:clamp(40px,6.4vw,76px);font-weight:700;letter-spacing:-.01em;margin-top:8px}
+.tb h1 span{color:#ff8a5c}
+.tb .sub{color:#c6d2db;font-size:17px;margin-top:8px;max-width:60ch}
+.tb .stamp{font:500 12px/1.6 var(--mono);color:#c6d2db;border:1px solid rgba(255,255,255,.25);padding:10px 14px;text-align:right}
+.tb .stamp b{color:#fff;font-weight:600}
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border-top:1px solid rgba(255,255,255,.16)}
+.kpi{padding:16px 16px 18px;border-right:1px solid rgba(255,255,255,.16);min-width:0}
+.kpi:last-child{border-right:0}
+.kpi b{display:block;font-size:30px;font-weight:600;letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:#fff}
+.kpi b small{font-size:15px;color:#9fb3c4;font-weight:500;margin-left:3px}
+.kpi span{font-size:13px;color:#9fb3c4}
+@media(max-width:900px){.tb .wrap{grid-template-columns:minmax(0,1fr)}.tb .stamp{text-align:left;justify-self:start}.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.kpi:nth-child(3){border-right:0}.kpi:nth-child(-n+3){border-bottom:1px solid rgba(255,255,255,.16)}}
+
+/* plan + steps */
+.flow{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:24px;padding-block:28px}
+.board{background:var(--sheet);border:1px solid var(--line);position:relative;min-width:0}
+.board-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.board-top h2{font-size:20px;font-weight:600}
+.zoom{font:500 12px var(--mono);border:1px solid var(--line);padding:6px 10px}
+.zoom[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.plan-box{overflow:auto;-webkit-overflow-scrolling:touch;display:flex;justify-content:center;padding:10px}
+.plan-box.zoomed{max-height:85svh;justify-content:flex-start}
+.plan-box svg{width:100%;max-width:700px;height:auto;flex:none;transition:max-width .4s}
+.plan-box.zoomed svg{width:1240px;max-width:none}
+#flow{opacity:.28}
+.badge,.badge-n{transition:opacity .4s,transform .4s;transform-box:fill-box;transform-origin:center}
+.badge.off,.badge-n.off{opacity:.25}
+.badge.now{transform:scale(1.45)}
+#prog{fill:none;stroke:var(--route);stroke-width:.34;stroke-linecap:round;stroke-linejoin:round}
+#token{fill:var(--route);stroke:#fff;stroke-width:.14}
+#halo{fill:none;stroke:var(--route);stroke-width:.12;opacity:.6;transform-box:fill-box;transform-origin:center;animation:halo 1.6s ease-out infinite}
+@keyframes halo{from{transform:scale(.6);opacity:.8}to{transform:scale(2.4);opacity:0}}
+
+.side{display:grid;gap:14px;align-content:start;min-width:0;position:sticky;top:16px;align-self:start}
+.now-card{background:var(--sheet);border:1px solid var(--line);border-top:4px solid var(--route);padding:16px 18px;display:grid;gap:6px}
+.now-card .n{font:600 13px var(--mono);color:var(--route)}
+.now-card h3{font-size:28px;font-weight:700}
+.now-card p{color:var(--slate);font-size:15px}
+.ctrl{display:flex;gap:8px;flex-wrap:wrap}
+.ctrl button{font:500 13px var(--mono);border:1px solid var(--ink);padding:9px 12px;background:var(--sheet)}
+.ctrl button.primary{background:var(--ink);color:#fff;min-width:96px}
+.steps{list-style:none;margin:0;padding:0;background:var(--sheet);border:1px solid var(--line)}
+.steps li button{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);font-size:15px;transition:background .25s}
+.steps li:last-child button{border-bottom:0}
+.steps .k{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font:600 12px var(--mono);border:1.5px solid var(--route);color:var(--route)}
+.steps .m{font:500 11px var(--mono);color:var(--mute);white-space:nowrap}
+.steps li.done .k{background:var(--route);color:#fff}
+.steps li.cur button{background:#fff1ea}
+.steps li.cur .t{font-weight:700}
+@media(max-width:980px){
+  .flow{grid-template-columns:minmax(0,1fr)}
+  .side{position:sticky;top:auto;bottom:0;z-index:5}
+  .steps{display:none}
+  .now-card{box-shadow:0 -8px 30px rgba(0,0,0,.12);padding:12px 14px calc(12px + env(safe-area-inset-bottom,0px))}
+  .now-card h3{font-size:22px}
+}
+
+/* machine strip */
+.machines{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border:1px solid var(--line);background:var(--sheet)}
+.mach{padding:14px 16px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-width:0}
+.mach:nth-child(4n){border-right:0}
+.mach:nth-last-child(-n+4){border-bottom:0}
+.mach .c{font:600 12px var(--mono);color:var(--route)}
+.mach b{display:block;font-size:19px;font-weight:600;margin:2px 0}
+.mach span{font:12px var(--mono);color:var(--slate)}
+@media(max-width:760px){.machines{grid-template-columns:repeat(2,minmax(0,1fr))}.mach:nth-child(2n){border-right:0}.mach:nth-child(4n){border-right:0}.mach:nth-last-child(-n+4){border-bottom:1px solid var(--line)}.mach:nth-last-child(-n+2){border-bottom:0}}
+
+section{padding-block:26px}
+.sec-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:10px;margin-bottom:14px}
+.sec-h h2{font-size:clamp(28px,4vw,40px);font-weight:700}
+.sec-h p{color:var(--slate);max-width:56ch}
+
+/* sheets */
+.sheets{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}
+.sh{display:grid;gap:8px;text-align:left}
+.sh .pg{position:relative;aspect-ratio:1488/2105;max-width:100%;background:#fff;border:1px solid var(--line);overflow:hidden;box-shadow:0 1px 0 var(--line),0 8px 20px rgba(29,36,39,.06);transition:transform .35s cubic-bezier(.2,.7,0,1),box-shadow .35s}
+.sh:hover .pg{transform:translateY(-4px);box-shadow:0 14px 30px rgba(29,36,39,.14)}
+.sh .pg img{width:100%;height:100%;object-fit:cover}
+.sh .no{position:absolute;left:8px;top:8px;font:600 11px var(--mono);background:var(--navy);color:#fff;padding:2px 6px}
+.sh .tt{font-size:15px;font-weight:600;line-height:1.2}
+.sh .gp{font:11px var(--mono);color:var(--mute);text-transform:uppercase;letter-spacing:.08em}
+@media(max-width:560px){.sheets{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}}
+
+/* lightbox */
+.lb{position:fixed;inset:0;z-index:50;background:rgba(18,22,24,.96);display:flex;flex-direction:column;color:#fff;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.lb-top{display:flex;align-items:center;gap:12px;padding:10px var(--gut-r) 10px var(--gut)}
+.lb-top h3{font-size:18px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb-top button{font:500 13px var(--mono);border:1px solid rgba(255,255,255,.35);padding:7px 11px;color:#fff;flex:none}
+.lb-img{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;display:flex;justify-content:center;align-items:flex-start}
+.lb-img img{max-height:100%;width:auto;max-width:100%;object-fit:contain;background:#fff}
+.lb-img.big img{max-height:none;max-width:none;width:min(1488px,220vw)}
+.lb-nav{display:flex;justify-content:center;gap:12px;padding:10px;font:13px var(--mono);align-items:center}
+.lb-nav button{border:1px solid rgba(255,255,255,.35);padding:8px 14px;color:#fff;font:inherit}
+
+.links{display:flex;flex-wrap:wrap;gap:10px}
+.links a{display:inline-flex;gap:8px;align-items:center;padding:10px 14px;background:var(--sheet);border:1px solid var(--line);text-decoration:none;font-weight:600}
+.links a span{font:12px var(--mono);color:var(--mute);font-weight:400}
+footer{padding:30px 0 50px;color:var(--mute);font:12px var(--mono)}
+@media (prefers-reduced-motion:reduce){*{transition-duration:.01ms!important;animation:none!important}}
+</style>
+
+<header class="tb">
+ <div class="wrap">
+  <div><p class="lbl">Ideal Pack · VSIP Bắc Ninh · Production Department</p>
+   <h1>Building 05 · <span>Layout R6</span></h1>
+   <p class="sub">The final site layout: 8 machines in process order, the warehouse, WIP and packing, the office block and the 13-step material route from the north main door and back out again.</p></div>
+  <p class="stamp">REV <b>R6</b> · site layout 11 Oct 2026<br>Drawing set updated <b>26 Oct 2026</b><br>21 sheets · drawn by Yohan De Silva</p>
+ </div>
+ <div class="wrap"><div class="kpis">
+  <div class="kpi"><b>8</b><span>production machines</span></div>
+  <div class="kpi"><b>270<small>m²</small></b><span>finished goods warehouse</span></div>
+  <div class="kpi"><b>55<small>m²</small></b><span>production WIP</span></div>
+  <div class="kpi"><b>37<small>m²</small></b><span>packing area</span></div>
+  <div class="kpi"><b>13</b><span>route steps, door to door</span></div>
+  <div class="kpi"><b>77<small>m</small></b><span>job route, printing to die-cutting</span></div>
+ </div></div>
+</header>
+
+<main class="wrap">
+ <div class="flow">
+  <div class="board">
+   <div class="board-top"><h2>Material route</h2><button class="zoom" id="zoom" type="button" aria-pressed="false">Zoom in</button></div>
+   <div class="plan-box" id="plan-box">__PLAN__</div>
+  </div>
+  <aside class="side">
+   <div class="now-card" aria-live="polite">
+    <p class="n" id="now-n">STEP 1 / 13</p>
+    <h3 id="now-t">Material in</h3>
+    <p id="now-d">At the north main door.</p>
+    <div class="ctrl"><button class="primary" id="play" type="button">Pause</button><button id="prev" type="button" aria-label="Previous step">‹ Prev</button><button id="next" type="button" aria-label="Next step">Next ›</button><button id="restart" type="button">Restart</button></div>
+   </div>
+   <ol class="steps" id="steps"></ol>
+  </aside>
+ </div>
+
+ <section>
+  <div class="sec-h"><h2>The eight machines</h2><p>Footprint and weight of each machine as placed in R6.</p></div>
+  <div class="machines" id="machines"></div>
+ </section>
+
+ <section>
+  <div class="sec-h"><h2>The R6 drawing set</h2><p>All 21 sheets. Tap a sheet to open it full size; use Zoom to read the dimensions.</p></div>
+  <div class="sheets" id="sheets"></div>
+ </section>
+
+ <section>
+  <div class="sec-h"><h2>Source files</h2></div>
+  <div class="links">
+   <a href="https://drive.google.com/file/d/1P2NUeEVqN8i7CmGHp88XeSWlPvjvbE2h/view" target="_blank" rel="noopener">Layout R6 PDF <span>Google Drive · 16 MB</span></a>
+   <a href="https://drive.google.com/drive/folders/1fp_eKDMpQDMD-CAguv0BhQmcPN2ykRQf" target="_blank" rel="noopener">ILP NEW FLOOR PLAN <span>folder</span></a>
+   <a href="https://drive.google.com/file/d/1Oa4H50jbHPgly9ns12DccxasTFOqdhb8/view" target="_blank" rel="noopener">Electrical drawing review <span>27 Oct</span></a>
+  </div>
+ </section>
+ <footer>Ideal Pack · Building 05 · R6 site layout · route and sheets from the R6 drawing source, 26 Oct 2026</footer>
+</main>
+
+<div class="lb" id="lb" hidden role="dialog" aria-modal="true" aria-labelledby="lb-t">
+ <div class="lb-top"><h3 id="lb-t"></h3><button type="button" id="lb-zoom" aria-pressed="false">Zoom</button><button type="button" id="lb-x">Close</button></div>
+ <div class="lb-img" id="lb-img"><img id="lb-im" alt=""></div>
+ <div class="lb-nav"><button type="button" id="lb-prev">‹ Prev</button><span id="lb-c"></span><button type="button" id="lb-next">Next ›</button></div>
+</div>
+
+<script>
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const STEPS = [
+ ["Material in", "Paper and board arrive at the north main door.", "Door"],
+ ["Production WIP", "Material waits in the WIP store, about 55 m².", "WIP"],
+ ["Cutting", "The Polar guillotine (P1) cuts sheets to size.", "P1"],
+ ["Printing", "Offset printing on the press (P2), 25 m long.", "P2"],
+ ["Doubling", "Doubling (P6).", "P6"],
+ ["Flute laminating", "Flute laminating (P7).", "P7"],
+ ["UV coating", "UV coating (P4).", "P4"],
+ ["Lamination", "Lamination (P5).", "P5"],
+ ["Die-cutting", "Die-cutting (P3), then the die-cut lanes.", "P3"],
+ ["Pasting", "Pasting (P8), fed from the die-cut lanes.", "P8"],
+ ["Packing", "Packed and checked at the packing and QC tables.", "Pack"],
+ ["Finished goods", "Into the finished goods warehouse, about 270 m².", "FG"],
+ ["Dispatch", "Out through the same north main door.", "Door"],
+];
+const MACH = [
+ ["P1","Cutting","10 × 4.3 m","5 t"],["P2","Printing","25 × 5.46 m","36 t"],["P3","Die-cutting","6.5 × 5 m","17 t"],["P4","UV coating","10.1 × 4 m","14 t"],
+ ["P5","Lamination","4.6 × 2.4 m","7 t"],["P6","Doubling","9.3 × 2.8 m","5 t"],["P7","Flute laminating","9 × 2.7 m","5 t"],["P8","Pasting","22 × 4.1 m","5 t"],
+];
+const SHEETS = [
+ ["Overview","Site layout"],["Site layout","Technical plan"],["Walkway and forklift routes","Site layout"],["Forklift check","Site layout"],
+ ["Storage capacity","Site layout"],["Dimensioned plan · north half","Dimensions"],["Dimensioned plan · south half","Dimensions"],
+ ["Dimension schedule · machines","Dimensions"],["Dimension schedule · spaces","Dimensions"],["Office plan","Offices"],
+ ["Office build drawing","Offices"],["Office items · QC · CTP · PD","Offices"],["Office items · other rooms","Offices"],["Office items · schedule","Offices"],
+ ["Guest-side apron","Outside"],["Services · compressed air","Services"],["Services · power, heat exhaust, big AC","Services"],
+ ["Services · office AC","Services"],["Checks","Checks"],["What changed","Checks"],["Pre-installation audit","Checks"],
+];
+
+/* ---------- route animation ---------- */
+const NS = "http://www.w3.org/2000/svg";
+const svg = $("#plan"), flow = $("#flow");
+const pts = flow.getAttribute("points").trim().split(/\s+/).map(p => p.split(",").map(Number));
+const prog = document.createElementNS(NS, "path"); prog.id = "prog";
+const halo = document.createElementNS(NS, "circle"); halo.id = "halo"; halo.setAttribute("r", ".9");
+const token = document.createElementNS(NS, "circle"); token.id = "token"; token.setAttribute("r", ".55");
+flow.after(prog); svg.append(halo, token);
+// cumulative lengths of the orthogonal route
+const cum = [0];
+for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+const total = cum[cum.length - 1];
+function at(L) {
+ L = Math.max(0, Math.min(total, L));
+ let i = 1; while (i < cum.length - 1 && cum[i] < L) i++;
+ const t = (L - cum[i - 1]) / ((cum[i] - cum[i - 1]) || 1);
+ return [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * t, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * t, i];
+}
+function pathTo(L) {
+ const p = at(L); let d = `M${pts[0][0]},${pts[0][1]}`;
+ for (let k = 1; k < p[2]; k++) d += ` L${pts[k][0]},${pts[k][1]}`;
+ return d + ` L${p[0]},${p[1]}`;
+}
+// where each numbered badge sits along the route
+const badges = [...svg.querySelectorAll(".badge")].sort((a, b) => a.dataset.step - b.dataset.step);
+const nums = [...svg.querySelectorAll(".badge-n")];
+const stepL = badges.map(b => {
+ const bx = +b.getAttribute("cx"), by = +b.getAttribute("cy");
+ let best = 0, bd = Infinity;
+ for (let L = 0; L <= total; L += .1) { const p = at(L), d = Math.hypot(p[0] - bx, p[1] - by); if (d < bd) { bd = d; best = L; } }
+ return best;
+});
+for (let i = 1; i < stepL.length; i++) if (stepL[i] < stepL[i - 1]) stepL[i] = stepL[i - 1];
+stepL[stepL.length - 1] = total;
+
+$("#steps").innerHTML = STEPS.map((s, i) => `<li data-i="${i}"><button type="button"><span class="k">${i + 1}</span><span class="t">${s[0]}</span><span class="m">${s[2]}</span></button></li>`).join("");
+$("#machines").innerHTML = MACH.map(m => `<div class="mach"><span class="c">${m[0]}</span><b>${m[1]}</b><span>${m[2]} · ${m[3]}</span></div>`).join("");
+const lis = [...document.querySelectorAll("#steps li")];
+
+let cur = 0, L = 0, target = stepL[0], playing = !RM, hold = 0, last = 0;
+function show(i) {
+ cur = i;
+ $("#now-n").textContent = `STEP ${i + 1} / ${STEPS.length}`;
+ $("#now-t").textContent = STEPS[i][0];
+ $("#now-d").textContent = STEPS[i][1];
+ badges.forEach((b, k) => { b.classList.toggle("off", k > i); b.classList.toggle("now", k === i); });
+ nums.forEach(t => t.classList.toggle("off", +t.dataset.step - 1 > i));
+ lis.forEach((li, k) => { li.classList.toggle("done", k <= i); li.classList.toggle("cur", k === i); });
+}
+function draw() {
+ prog.setAttribute("d", pathTo(L));
+ const p = at(L);
+ token.setAttribute("cx", p[0]); token.setAttribute("cy", p[1]);
+ halo.setAttribute("cx", p[0]); halo.setAttribute("cy", p[1]);
+}
+function go(i, jump) { i = Math.max(0, Math.min(STEPS.length - 1, i)); target = stepL[i]; show(i); hold = 0; if (jump || RM) { L = target; draw(); } }
+function frame(t) {
+ const dt = Math.min(64, t - (last || t)); last = t;
+ if (Math.abs(target - L) > .01) {
+  const speed = 9 * dt / 1000;            // metres of route per second
+  L += Math.sign(target - L) * Math.min(Math.abs(target - L), speed);
+  draw();
+ } else if (playing) {
+  hold += dt;
+  if (hold > 1400) { if (cur < STEPS.length - 1) go(cur + 1); else { hold = -2400; go(0, true); } }
+ }
+ requestAnimationFrame(frame);
+}
+show(0); L = 0; draw(); target = stepL[0];
+requestAnimationFrame(frame);
+const setPlay = v => { playing = v; $("#play").textContent = v ? "Pause" : "Play"; };
+setPlay(playing);
+$("#play").onclick = () => setPlay(!playing);
+$("#next").onclick = () => { setPlay(false); go(cur + 1); };
+$("#prev").onclick = () => { setPlay(false); go(cur - 1, true); };
+$("#restart").onclick = () => { go(0, true); setPlay(true); };
+lis.forEach((li, k) => li.querySelector("button").onclick = () => { setPlay(false); go(k, k < cur); });
+$("#zoom").onclick = e => { const z = $("#plan-box").classList.toggle("zoomed"); e.target.setAttribute("aria-pressed", z); e.target.textContent = z ? "Zoom out" : "Zoom in"; };
+
+/* ---------- sheets ---------- */
+const pad = n => String(n).padStart(2, "0");
+$("#sheets").innerHTML = SHEETS.map((s, i) => `<button class="sh" type="button" data-i="${i}"><span class="pg"><img src="sheets/t${pad(i + 1)}.webp" alt="" loading="lazy" decoding="async"><span class="no">${pad(i + 1)}</span></span><span class="gp">${s[1]}</span><span class="tt">${s[0]}</span></button>`).join("");
+const lb = $("#lb"); let li = 0, back = null;
+function openSheet(i) {
+ li = (i + SHEETS.length) % SHEETS.length;
+ $("#lb-im").src = `sheets/p${pad(li + 1)}.webp`;
+ $("#lb-im").alt = `Sheet ${li + 1}: ${SHEETS[li][0]}`;
+ $("#lb-t").textContent = `${pad(li + 1)} · ${SHEETS[li][0]}`;
+ $("#lb-c").textContent = `${li + 1} / ${SHEETS.length}`;
+ $("#lb-img").scrollTo(0, 0);
+ if (lb.hidden) { back = document.activeElement; lb.hidden = false; document.body.style.overflow = "hidden"; $("#lb-x").focus(); }
+}
+function closeSheet() { lb.hidden = true; document.body.style.overflow = ""; $("#lb-img").classList.remove("big"); $("#lb-zoom").setAttribute("aria-pressed", "false"); back && back.focus(); }
+$("#sheets").addEventListener("click", e => { const b = e.target.closest(".sh"); if (b) openSheet(+b.dataset.i); });
+$("#lb-x").onclick = closeSheet;
+$("#lb-prev").onclick = () => openSheet(li - 1);
+$("#lb-next").onclick = () => openSheet(li + 1);
+$("#lb-zoom").onclick = e => { const z = $("#lb-img").classList.toggle("big"); e.target.setAttribute("aria-pressed", z); };
+document.addEventListener("keydown", e => {
+ if (lb.hidden) return;
+ if (e.key === "Escape") closeSheet();
+ if (e.key === "ArrowRight") openSheet(li + 1);
+ if (e.key === "ArrowLeft") openSheet(li - 1);
+});
+})();
+</script>

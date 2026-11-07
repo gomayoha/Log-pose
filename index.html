@@ -1,0 +1,1426 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Yohan's Log Pose: every site, board, card and case file in one place.">
+<title>Yohan's Log Pose</title>
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-title" content="Log Pose">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" sizes="180x180" href="img/icon-180.png">
+<link rel="icon" type="image/png" sizes="512x512" href="img/icon-512.png">
+<style>
+/* Layout: an app of seven islands. Home is a living One Piece wall, today's numbers and a sea chart that links the
+   islands; each island opens on its own cinematic cover. The Log Pose compass (bottom centre on iPhone, ⌘K on Mac)
+   points to where you should go now and searches everything. One committed dark look from the Grand Archive. */
+:root{
+  --bg:#000; --raise:#0b0b0d; --card:#141416; --card-2:#1c1c1f;
+  --fg:#f5f5f7; --mute:#a1a1a6; --dim:#6e6e73; --line:rgba(255,255,255,.12); --line-2:rgba(255,255,255,.22);
+  --gold:#f3c969; --gold-ink:#1a1306; --red:#e5483b; --ok:#7fd6a4; --warn:#f3c969; --bad:#ff7a6b;
+  --acc:var(--gold);
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",Arial,sans-serif;
+  --serif:"New York","Iowan Old Style","Palatino Linotype",Georgia,serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --ease:cubic-bezier(.2,.7,0,1);
+  --gut:max(16px,env(safe-area-inset-left,0px)); --gut-r:max(16px,env(safe-area-inset-right,0px));
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{background:var(--bg);-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 var(--font);letter-spacing:-.01em;-webkit-font-smoothing:antialiased;overflow-x:clip}
+img{display:block;max-width:100%}
+a{color:inherit;text-decoration:none}
+button,input,select{font:inherit;color:inherit}
+button{background:none;border:0;padding:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:8px}
+h1,h2,h3{margin:0;font-weight:700;letter-spacing:-.035em;line-height:1.02;text-wrap:balance}
+h1 em,h2 em,h3 em{font-family:var(--serif);font-style:italic;font-weight:400;letter-spacing:-.02em}
+p{margin:0}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--acc)}
+.wrap{width:100%;max-width:1240px;margin-inline:auto;padding-left:var(--gut);padding-right:var(--gut)}
+.num{font-variant-numeric:tabular-nums}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+ul.plain{list-style:none;margin:0;padding:0}
+
+/* ---------- top bar ---------- */
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:60;background:#000}
+.bar{position:fixed;left:0;right:0;top:env(safe-area-inset-top,0px);z-index:50;height:58px;display:flex;align-items:center;gap:18px;
+  padding-left:var(--gut);padding-right:var(--gut);transition:background .5s var(--ease),border-color .5s;border-bottom:1px solid transparent}
+.bar.solid{background:rgba(8,8,10,.86);border-bottom-color:var(--line);-webkit-backdrop-filter:saturate(170%) blur(18px);backdrop-filter:saturate(170%) blur(18px)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:650;font-size:15px;white-space:nowrap}
+.brand img{width:32px;height:32px;border-radius:9px;object-fit:cover;box-shadow:0 0 0 1.5px rgba(243,201,105,.8)}
+.brand small{color:var(--mute);font-weight:500}
+.bar nav{display:flex;gap:4px;margin-left:auto;font-size:13px}
+.bar nav a{color:var(--mute);padding:7px 11px;border-radius:999px;transition:color .25s,background .25s}
+.bar nav a:hover{color:var(--fg)}
+.bar nav a[aria-current="page"]{color:var(--fg);background:rgba(255,255,255,.1)}
+.pose-btn{display:inline-flex;align-items:center;gap:8px;font-size:13px;border:1px solid var(--line-2);border-radius:999px;padding:5px 12px 5px 6px;background:rgba(255,255,255,.04)}
+.pose-btn:hover{background:rgba(255,255,255,.1)}
+.pose-btn kbd{font:11px var(--font);color:var(--mute);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+.mini-pose{width:26px;height:26px;flex:none}
+.mini-pose .ndl{transform-origin:12px 12px;transition:transform 1.1s cubic-bezier(.34,1.56,.5,1)}
+@media(max-width:1000px){.bar nav{display:none}.pose-btn{margin-left:auto}.pose-btn kbd{display:none}}
+
+/* ---------- views ---------- */
+.view{display:none}
+.view.on{display:block;animation:viewIn .55s var(--ease)}
+@keyframes viewIn{from{opacity:0;transform:translateY(14px)}}
+
+/* ---------- home: opening wall ---------- */
+.open{position:relative;height:clamp(600px,88svh,920px);overflow:hidden;background:#000;perspective:1300px;isolation:isolate}
+.tilt{position:absolute;inset:-8% -6% -2%;transform:rotateX(18deg) rotateZ(-6deg) scale(1.12);transform-origin:50% 70%}
+.wall{position:absolute;inset:0;display:grid;grid-template-columns:repeat(var(--cols,6),1fr);grid-auto-rows:calc((100% - 8px * 5) / 6);gap:8px;animation:drift 70s ease-in-out infinite alternate}
+@keyframes drift{from{transform:translate3d(-2%,-1%,0)}to{transform:translate3d(2%,-6%,0)}}
+.tile{position:relative;border-radius:10px;overflow:hidden;background:#111;opacity:.42;transition:opacity 1.2s var(--ease),transform 1.2s var(--ease)}
+.tile img{width:100%;height:100%;object-fit:cover;transition:opacity .9s}
+.tile.lit{opacity:1;transform:scale(1.08);z-index:2;box-shadow:0 0 0 1.5px rgba(243,201,105,.75),0 20px 60px rgba(0,0,0,.8)}
+.shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.65) 0%,rgba(0,0,0,0) 22%,rgba(0,0,0,0) 40%,rgba(0,0,0,.82) 72%,#000 100%),radial-gradient(90% 60% at 20% 90%,rgba(0,0,0,.7),transparent 70%)}
+.open-copy{position:absolute;left:0;right:0;bottom:0;padding-bottom:clamp(28px,6svh,64px)}
+.open-copy .wrap{display:grid;gap:14px}
+.clock{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--mute);text-shadow:0 1px 8px #000}
+.clock b{color:var(--fg);font-weight:600}
+.open h1{font-size:clamp(52px,9vw,128px);line-height:.9;letter-spacing:-.055em;max-width:12ch}
+.open h1 em{color:var(--gold)}
+.rotor{font-family:var(--serif);font-style:italic;font-size:clamp(18px,2vw,24px);color:#e9e5dc;max-width:46ch;min-height:2.6em;transition:opacity .6s;text-shadow:0 1px 12px #000}
+.rotor small{display:block;font:500 12px var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-top:6px}
+.actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:12px 20px;border-radius:999px;background:var(--fg);color:#000;font-weight:600;font-size:15px;transition:transform .4s var(--ease)}
+.pill:hover{transform:scale(1.04)}
+.pill.ghost{background:rgba(255,255,255,.1);color:var(--fg);border:1px solid var(--line-2)}
+.pill.acc{background:var(--acc);color:#0b0b0b}
+.pill svg{width:16px;height:16px}
+.lit-cap{font-size:12px;color:var(--mute);min-height:1.5em;text-shadow:0 1px 6px #000}
+.lit-cap b{color:var(--gold);font-weight:600}
+
+/* today strip */
+.today{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding-block:10px 4px}
+.chip{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px;display:grid;gap:6px;min-width:0}
+.chip .k{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--mute)}
+.chip .v{font-size:26px;font-weight:700;letter-spacing:-.03em;line-height:1}
+.chip .v small{font-size:13px;font-weight:500;color:var(--mute);letter-spacing:0;margin-left:4px}
+.chip .s{font-size:13px;color:var(--mute)}
+.meter{height:4px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden}
+.meter i{display:block;height:100%;border-radius:4px;background:var(--ok)}
+.meter i.warn{background:var(--warn)}.meter i.bad{background:var(--bad)}
+.chip.vi .v{font-family:var(--serif);font-style:italic;font-weight:400;font-size:22px;letter-spacing:-.01em;line-height:1.15}
+.chip.vi button{justify-self:start;font-size:12px;color:var(--gold)}
+@media(max-width:900px){.today{grid-template-columns:repeat(2,minmax(0,1fr))}.today .chip:nth-child(3){grid-column:1 / -1}}
+
+/* the sea chart */
+.chart-h{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px 24px;margin:clamp(48px,8vw,90px) 0 10px}
+.chart-h h2{font-size:clamp(36px,5.4vw,64px);margin-top:8px}
+.chart-h p{color:var(--mute);max-width:44ch;font-size:15px}
+.needle-note{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:16px;background:var(--card);border:1px solid var(--line);font-size:14px;color:var(--mute);margin-bottom:18px}
+.needle-note b{color:var(--fg)}
+.needle-note svg{width:34px;height:34px;flex:none}
+.chart{position:relative;padding-block:10px 40px}
+.route{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.route path{fill:none;stroke:rgba(243,201,105,.45);stroke-width:2;stroke-dasharray:2 9;stroke-linecap:round}
+.ship{position:absolute;left:0;top:0;width:34px;height:34px;margin:-17px 0 0 -17px;pointer-events:none;z-index:3;will-change:transform}
+.isles{position:relative;z-index:2;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:56px 40px}
+.isles .isle:nth-child(3n+2){transform:translateY(70px)}
+.isles .isle:nth-child(7){grid-column:2}
+.isle{display:grid;gap:12px;justify-items:center;text-align:center;--acc:var(--gold)}
+.isle-pic{position:relative;width:min(260px,100%);aspect-ratio:1;max-width:100%;border-radius:47% 53% 44% 56% / 52% 45% 55% 48%;overflow:hidden;
+  box-shadow:0 0 0 1.5px color-mix(in srgb,var(--acc) 70%,transparent),0 0 0 9px rgba(255,255,255,.03),0 30px 60px rgba(0,0,0,.6);transition:transform .7s var(--ease),border-radius 1.2s var(--ease)}
+.isle-pic img{width:100%;height:100%;object-fit:cover;transition:transform 1.2s var(--ease)}
+.isle-pic::after{content:"";position:absolute;inset:0;background:radial-gradient(100% 80% at 50% 0%,transparent 40%,rgba(0,0,0,.55))}
+.isle:hover .isle-pic{transform:translateY(-6px) rotate(-2deg);border-radius:53% 47% 56% 44% / 45% 52% 48% 55%}
+.isle:hover .isle-pic img{transform:scale(1.07)}
+.isle .in{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--acc)}
+.isle h3{font-size:clamp(24px,2.6vw,32px)}
+.isle .tg{color:var(--mute);font-size:14px;max-width:30ch}
+.isle .ct{font-size:12px;color:var(--dim)}
+.isle.pointed .isle-pic{box-shadow:0 0 0 2px var(--acc),0 0 0 10px color-mix(in srgb,var(--acc) 18%,transparent),0 0 60px color-mix(in srgb,var(--acc) 40%,transparent),0 30px 60px rgba(0,0,0,.6)}
+.isle .here{display:none;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#000;background:var(--acc);border-radius:999px;padding:3px 9px}
+.isle.pointed .here{display:inline-block}
+@media(max-width:760px){
+  .isles{grid-template-columns:repeat(2,minmax(0,1fr));gap:40px 18px}
+  .isles .isle:nth-child(3n+2){transform:none}
+  .isles .isle:nth-child(2n){transform:translateY(54px)}
+  .isles .isle:nth-child(7){grid-column:1 / -1;width:60%;justify-self:center}
+  .isle .tg{font-size:13px}
+}
+
+/* ---------- island covers ---------- */
+.cover{position:relative;min-height:clamp(560px,82svh,860px);display:flex;align-items:flex-end;overflow:hidden;isolation:isolate;background:#050505}
+.cv-bg{position:absolute;inset:0;z-index:-2}
+.cv-bg img{width:100%;height:100%;object-fit:cover;animation:kb 26s ease-in-out infinite alternate}
+@keyframes kb{from{transform:scale(1.04)}to{transform:scale(1.16) translate3d(-1.5%,-1.5%,0)}}
+.cover::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,.1) 30%,rgba(0,0,0,.65) 68%,#000 100%)}
+.cv-copy{padding-block:120px clamp(30px,6svh,64px);display:grid;gap:16px;position:relative}
+.cover h1{font-size:clamp(54px,9vw,132px);line-height:.88;letter-spacing:-.055em}
+.cover h1 em{color:var(--acc)}
+.cv-intro{font-size:clamp(17px,1.6vw,21px);color:#dedbd4;max-width:52ch;text-shadow:0 1px 10px #000}
+.cv-stats{display:flex;flex-wrap:wrap;gap:8px}
+.cv-stats span{font-size:13px;padding:6px 12px;border-radius:999px;border:1px solid var(--line-2);background:rgba(0,0,0,.35);color:#e6e6ea}
+.cv-stats b{color:var(--acc);font-weight:700}
+
+/* workshop cover: the R6 plan as a lit drawing */
+.cover.workshop{background:radial-gradient(90% 70% at 75% 30%,#13302a,#060b0a 70%)}
+.cover.workshop .cv-bg{left:auto;width:min(620px,70%);right:4%;opacity:.5}
+.cover.workshop .cv-bg img{object-fit:contain;object-position:right center;filter:invert(1) hue-rotate(180deg) saturate(.6) contrast(1.05);mix-blend-mode:screen;animation:none}
+.cover.workshop::after{background:linear-gradient(90deg,#060b0a 30%,rgba(6,11,10,.4) 70%,transparent),linear-gradient(180deg,transparent 60%,#000)}
+/* vault cover: three special cards on a gold table */
+.cover.vault{background:radial-gradient(70% 60% at 70% 40%,#3a2a0c,#0a0703 70%)}
+.cover.vault::after{background:linear-gradient(90deg,#0a0703 25%,rgba(10,7,3,.3) 60%,transparent),linear-gradient(180deg,transparent 60%,#000)}
+.fan{position:absolute;right:max(4%,var(--gut-r));top:50%;width:min(460px,52vw);aspect-ratio:1.25;transform:translateY(-55%);z-index:-1}
+.fan img{position:absolute;top:0;left:50%;width:46%;aspect-ratio:5/7;object-fit:cover;border-radius:14px;box-shadow:0 30px 60px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.18);animation:bob 6s ease-in-out infinite}
+.fan img:nth-child(1){transform:translateX(-118%) rotate(-14deg) translateY(10%);animation-delay:-2s}
+.fan img:nth-child(2){transform:translateX(-50%) translateY(-4%);z-index:2}
+.fan img:nth-child(3){transform:translateX(18%) rotate(14deg) translateY(10%);animation-delay:-4s}
+@keyframes bob{50%{margin-top:-12px}}
+/* rabbit hole cover */
+.cover.rabbit{background:#000;font-family:var(--mono)}
+.cover.rabbit .cv-bg img{filter:grayscale(1) contrast(1.35) brightness(.55);animation:kb 30s ease-in-out infinite alternate}
+.cover.rabbit::after{background:radial-gradient(70% 70% at 50% 40%,transparent 20%,rgba(0,0,0,.85) 75%),linear-gradient(180deg,rgba(0,0,0,.4),transparent 40%,#000)}
+.flick{position:absolute;inset:0;z-index:-1;background:rgba(0,0,0,.6);animation:flick 7s steps(1) infinite;pointer-events:none}
+@keyframes flick{0%,100%{opacity:0}46%{opacity:.85}47%{opacity:0}49%{opacity:.6}50%{opacity:0}83%{opacity:.4}84%{opacity:0}}
+.grain{position:absolute;inset:-50%;z-index:-1;opacity:.1;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");animation:grain 1.2s steps(4) infinite}
+@keyframes grain{25%{transform:translate(-4%,3%)}50%{transform:translate(3%,-5%)}75%{transform:translate(-2%,-3%)}}
+.cover.rabbit h1{font-family:var(--font)}
+.evidence{position:absolute;right:max(7%,var(--gut-r));top:50%;transform:translateY(-52%) rotate(-4deg);z-index:-1;margin:0;width:min(300px,34vw);background:#e9e4d8;padding:12px 12px 34px;box-shadow:0 40px 80px rgba(0,0,0,.8)}
+.evidence img{width:100%;aspect-ratio:4/5;object-fit:cover;object-position:50% 30%;filter:grayscale(1) contrast(1.4) brightness(.92)}
+.evidence figcaption{position:absolute;left:12px;right:12px;bottom:10px;font:600 10px var(--mono);letter-spacing:.12em;color:#3a352c}
+.evidence::before{content:"";position:absolute;left:50%;top:-10px;width:16px;height:16px;margin-left:-8px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ff8a80,#a1150f);box-shadow:0 3px 6px rgba(0,0,0,.6);z-index:2}
+.cover.rabbit h1 em{color:#d1302a}
+.classified{position:absolute;right:var(--gut-r);top:96px;transform:rotate(8deg);font:800 clamp(16px,2.4vw,26px) var(--mono);letter-spacing:.2em;color:#d1302a;border:3px solid #d1302a;padding:6px 14px;opacity:.85;mix-blend-mode:screen}
+.typed{font:15px/1.7 var(--mono);color:#cfcac0;max-width:56ch;min-height:5.2em}
+.typed .cur{display:inline-block;width:.6em;height:1.1em;background:#d1302a;vertical-align:-.15em;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.redact{background:#cfcac0;color:transparent;border-radius:2px;padding:0 .2em}
+/* sanctuary cover */
+.cover.sanct{background:radial-gradient(60% 55% at 50% 42%,#3b2a12,#120c05 55%,#000 85%);align-items:center}
+.cover.sanct::after{background:linear-gradient(180deg,transparent 70%,#000)}
+.glow{position:absolute;left:50%;top:38%;width:min(560px,120vw);aspect-ratio:1;transform:translate(-50%,-50%);z-index:-1;border-radius:50%;background:radial-gradient(circle,rgba(255,196,110,.42),rgba(255,160,60,.1) 45%,transparent 70%);animation:candle 4.5s ease-in-out infinite}
+@keyframes candle{0%,100%{opacity:.85;transform:translate(-50%,-50%) scale(1)}35%{opacity:1;transform:translate(-50%,-50%) scale(1.04)}60%{opacity:.75}}
+.sanct .cross{width:clamp(120px,18vw,190px);margin:0 auto;border-radius:28px;box-shadow:0 0 80px rgba(255,190,100,.35)}
+.sanct .cv-copy{text-align:center;justify-items:center;padding-top:110px}
+.verse{font-family:var(--serif);font-style:italic;font-size:clamp(20px,2.4vw,30px);max-width:30ch;color:#f3e6cf}
+.verse small{display:block;font:600 12px var(--font);font-style:normal;letter-spacing:.12em;text-transform:uppercase;color:var(--acc);margin-top:10px}
+/* captain's log cover: his own wanted poster */
+.cover.logc{background:radial-gradient(70% 60% at 70% 45%,#2a2015,#090705 70%)}
+.cover.logc::after{background:linear-gradient(90deg,#090705 28%,rgba(9,7,5,.2) 65%,transparent),linear-gradient(180deg,transparent 65%,#000)}
+.wanted{position:absolute;right:max(5%,var(--gut-r));top:50%;transform:translateY(-52%) rotate(3deg);z-index:-1;width:min(330px,40vw);background:#efe3c4;color:#2a1d0c;padding:16px 16px 18px;border-radius:4px;text-align:center;display:grid;gap:8px;box-shadow:0 40px 80px rgba(0,0,0,.7)}
+.wanted::before{content:"";position:absolute;inset:0;box-shadow:inset 0 0 60px rgba(110,70,20,.4);pointer-events:none}
+.wanted .w{font-family:var(--serif);font-weight:700;font-size:clamp(34px,4.4vw,54px);letter-spacing:.08em;line-height:1}
+.wanted .pp{aspect-ratio:4/4.4;border:3px solid #2a1d0c;overflow:hidden;background:#cdbf9b}
+.wanted .pp img{width:100%;height:100%;object-fit:cover;object-position:50% 20%;filter:sepia(.55) contrast(1.08) saturate(.8)}
+.wanted .doa{font-size:12px;font-weight:800;letter-spacing:.24em}
+.wanted .nm{font-family:var(--serif);font-weight:700;font-size:clamp(20px,2.2vw,28px);letter-spacing:.06em}
+.wanted .bty{font-family:var(--serif);font-weight:700;font-size:clamp(18px,2vw,26px);font-variant-numeric:tabular-nums}
+.wanted .mk{font-size:10px;letter-spacing:.2em;color:#6a5434}
+@media(max-width:760px){
+  .cover{min-height:72svh}
+  .cover.vault,.cover.logc,.cover.rabbit{min-height:auto}
+  .cv-copy{padding-top:56px}
+  .cover.workshop .cv-bg{width:100%;right:0;opacity:.35}
+  .fan{position:relative;right:auto;top:auto;transform:none;width:min(360px,86%);margin:84px auto -20px}
+  .cover.vault{flex-direction:column;align-items:stretch}
+  .wanted{position:relative;right:auto;top:auto;transform:rotate(2deg);width:min(280px,76%);margin:84px auto -10px}
+  .cover.logc{flex-direction:column;align-items:stretch}
+  .classified{top:auto;bottom:18px;right:14px;font-size:13px}
+  .cover::after{background:linear-gradient(180deg,rgba(0,0,0,.5),rgba(0,0,0,.45) 35%,rgba(0,0,0,.82) 70%,#000)}
+  .cover.workshop::after{background:linear-gradient(180deg,rgba(6,11,10,.55),rgba(6,11,10,.75) 50%,#000)}
+  .evidence{position:relative;right:auto;top:auto;transform:rotate(-3deg);width:min(240px,64%);margin:84px auto -6px}
+  .cover.rabbit{flex-direction:column;align-items:stretch}
+}
+
+/* ---------- sections inside islands ---------- */
+section.blk{padding-block:clamp(44px,7vw,84px) 0}
+.head{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px 24px;margin-bottom:22px}
+.head h2{font-size:clamp(32px,4.8vw,56px);margin-top:8px}
+.head>p{color:var(--mute);max-width:46ch;font-size:15px}
+.sub{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);margin:30px 0 12px;display:flex;align-items:center;gap:10px}
+.sub::after{content:"";flex:1;height:1px;background:var(--line)}
+
+/* site cards */
+.sites{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px}
+.site{position:relative;grid-column:span 4;background:var(--card);border:1px solid var(--line);border-radius:22px;overflow:hidden;display:flex;flex-direction:column;transition:transform .5s var(--ease),border-color .3s}
+.site.wide{grid-column:span 8}
+.site.half{grid-column:span 6}
+.site:hover{transform:translateY(-3px);border-color:var(--line-2)}
+.site .pic{position:relative;aspect-ratio:16/9;max-width:100%;overflow:hidden;background:var(--card-2)}
+.site.wide .pic{aspect-ratio:16/8}
+.site .pic img{width:100%;height:100%;object-fit:cover;transition:transform 1.2s var(--ease)}
+.site:hover .pic img{transform:scale(1.04)}
+.site .pic.logo{display:grid;place-items:center;background:radial-gradient(120% 90% at 30% 10%,#1d2a22,#0b0f0c 70%)}
+.site .pic.logo img{width:auto;height:58%;object-fit:contain}
+.site .pic.plan{background:#eef0ec}
+.site .pic.plan img{object-fit:cover;object-position:50% 8%}
+.site .pic.type{display:grid;place-items:end start;padding:18px;background:var(--tone,#151517)}
+.site .pic.type span{font-family:var(--serif);font-style:italic;font-size:clamp(28px,3vw,40px);line-height:1;color:rgba(255,255,255,.92)}
+.badge-new{position:absolute;left:12px;top:12px;font-size:11px;font-weight:700;letter-spacing:.06em;padding:4px 9px;border-radius:999px;background:var(--acc);color:#000}
+.site .body{padding:16px 18px 18px;display:grid;gap:6px;flex:1;align-content:start}
+.site h3{font-size:19px;letter-spacing:-.025em;line-height:1.15}
+.site.wide h3{font-size:24px}
+.site p{font-size:14px;color:var(--mute)}
+.meta{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--dim)}
+.host{border:1px solid var(--line);border-radius:999px;padding:2px 8px;color:var(--mute)}
+.meta .go{margin-left:auto;color:var(--fg);font-size:15px}
+.stretch::after{content:"";position:absolute;inset:0;z-index:1}
+.code{position:relative;z-index:2;color:var(--mute);text-decoration:underline;text-decoration-color:var(--line-2);text-underline-offset:3px}
+@media(max-width:900px){.site,.site.wide,.site.half{grid-column:span 6}}
+@media(max-width:560px){
+  .sites{gap:10px}
+  .site,.site.half{grid-column:span 6;border-radius:18px}
+  .site.wide{grid-column:span 12}
+  .site .body{padding:12px 12px 14px}
+  .site h3{font-size:16px}.site.wide h3{font-size:20px}
+  .site p{font-size:13px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .site .pic,.site.wide .pic{aspect-ratio:4/3}
+  .site.wide .pic{aspect-ratio:16/10}
+  .meta .code{display:none}
+}
+
+/* rows */
+.rows{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 28px}
+.row{position:relative;display:flex;align-items:center;gap:14px;padding:13px 2px;border-bottom:1px solid var(--line);min-width:0}
+.row:hover .row-t{color:var(--acc)}
+.row .ic{flex:none;width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--card-2);border:1px solid var(--line)}
+.row .ic svg{width:18px;height:18px;color:var(--mute)}
+.row .ic.claude svg{color:#e8a17a}.row .ic.drive svg{color:#8fc3a6}.row .ic.gh svg{color:var(--fg)}.row .ic.chat svg{color:#c9b7ff}
+.row-x{min-width:0;flex:1}
+.row-t{display:block;font-weight:600;font-size:15px;transition:color .25s;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row-d{font-size:13px;color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .arr{color:var(--dim);flex:none}
+@media(max-width:760px){.rows{grid-template-columns:minmax(0,1fr)}}
+details.older{margin-top:26px;border-top:1px solid var(--line);padding-top:12px}
+details.older summary{cursor:pointer;font-size:13px;color:var(--dim)}
+details.older[open] summary{margin-bottom:6px}
+
+/* crew bounties */
+.rail{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:10px;scrollbar-width:thin;scrollbar-color:#333 transparent;
+  margin-left:calc(-1 * var(--gut));margin-right:calc(-1 * var(--gut-r));padding-left:var(--gut);padding-right:var(--gut-r);scroll-padding-left:var(--gut)}
+.poster{flex:none;width:200px;scroll-snap-align:start;background:#efe3c4;color:#2a1d0c;border-radius:6px;padding:12px 12px 14px;display:grid;gap:8px;box-shadow:0 10px 30px rgba(0,0,0,.5);text-align:center;position:relative}
+.poster .w{font-family:var(--serif);font-weight:700;font-size:30px;letter-spacing:.08em;line-height:1}
+.poster .pp{aspect-ratio:4/5;max-width:100%;border:2px solid #2a1d0c;overflow:hidden;background:#cdbf9b}
+.poster .pp img{width:100%;height:100%;object-fit:cover;filter:sepia(.18) contrast(1.04)}
+.poster .doa{font-size:10px;font-weight:800;letter-spacing:.2em}
+.poster .nm{font-family:var(--serif);font-weight:700;font-size:17px;line-height:1.1}
+.poster .bty{font-family:var(--serif);font-weight:700;font-size:17px;font-variant-numeric:tabular-nums}
+.poster .wd{font-size:11px;color:#6a5434;letter-spacing:.06em;text-transform:uppercase}
+.poster::before{content:"";position:absolute;inset:0;border-radius:6px;box-shadow:inset 0 0 40px rgba(110,70,20,.35);pointer-events:none}
+.crew-total{display:flex;align-items:baseline;gap:10px;color:var(--mute);font-size:14px}
+.crew-total b{font-size:22px;color:var(--gold);font-variant-numeric:tabular-nums}
+
+/* character folders */
+.filters{display:flex;gap:8px;flex-wrap:wrap}
+.fbtn{font-size:13px;padding:7px 14px;border-radius:999px;border:1px solid var(--line-2);color:var(--mute);transition:all .25s}
+.fbtn[aria-pressed="true"]{background:var(--fg);color:#000;border-color:var(--fg)}
+.folders{display:grid;grid-template-columns:repeat(auto-fill,minmax(176px,1fr));gap:22px 16px}
+.folder{display:grid;gap:10px;text-align:left;width:100%;min-width:0}
+.stack{position:relative;aspect-ratio:3/4;max-width:100%}
+.stack img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:14px;box-shadow:0 10px 26px rgba(0,0,0,.55);transition:transform .7s var(--ease)}
+.stack img:nth-child(1){transform:rotate(-6deg) translate(-6%,2%) scale(.92);opacity:.7}
+.stack img:nth-child(2){transform:rotate(5deg) translate(6%,1%) scale(.94);opacity:.85}
+.stack img:nth-child(3){z-index:2}
+.stack::after{content:"";position:absolute;inset:0;z-index:3;border-radius:14px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);pointer-events:none}
+.folder:hover .stack img:nth-child(1){transform:rotate(-11deg) translate(-14%,3%) scale(.92)}
+.folder:hover .stack img:nth-child(2){transform:rotate(10deg) translate(14%,2%) scale(.94)}
+.tab-band{position:absolute;left:10px;bottom:10px;z-index:4;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:rgba(0,0,0,.6);border:1px solid var(--line-2)}
+.folder .fn{font-weight:650;font-size:16px;display:flex;align-items:center;gap:8px}
+.folder .fn i{width:8px;height:8px;border-radius:50%;background:var(--tint,var(--gold));flex:none}
+.folder .fs{font-size:13px;color:var(--mute);margin-top:-6px}
+@media(max-width:560px){.folders{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 18px;padding-inline:6px}
+  .stack img:nth-child(1){transform:rotate(-4deg) translate(-3%,2%) scale(.92)}.stack img:nth-child(2){transform:rotate(3deg) translate(3%,1%) scale(.94)}}
+
+/* watch log */
+.log{display:grid;grid-template-columns:1.2fr 1fr;gap:14px}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px}
+.stat b{display:block;font-size:34px;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
+.stat span{font-size:13px;color:var(--mute)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:18px 20px;min-width:0}
+.panel h3{font-size:13px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--mute);margin-bottom:10px}
+.now li{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}
+.now li:last-child{border-bottom:0}
+.now li span{color:var(--gold);font-variant-numeric:tabular-nums;flex:none}
+ol.top{list-style:none;margin:0;padding:0;counter-reset:t;columns:2;column-gap:24px;font-size:15px}
+ol.top li{counter-increment:t;break-inside:avoid;padding:6px 0;display:flex;gap:10px}
+ol.top li::before{content:counter(t);font-family:var(--serif);font-style:italic;color:var(--gold);width:1.4em;flex:none;text-align:right}
+@media(max-width:900px){.log{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:560px){ol.top{columns:1}.stat b{font-size:28px}}
+
+/* ---------- card vault ---------- */
+.vstats{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.cwall{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:14px 12px;perspective:900px}
+.tc{position:relative;display:grid;gap:6px;text-align:left;min-width:0}
+.tc .face{position:relative;aspect-ratio:63/88;max-width:100%;border-radius:7px;overflow:hidden;box-shadow:0 8px 20px rgba(0,0,0,.6);transition:transform .45s var(--ease),box-shadow .45s;transform:rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg))}
+.tc .face img{width:100%;height:100%;object-fit:cover}
+.tc .face::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.28) 50%,transparent 65%);opacity:0;transition:opacity .3s;mix-blend-mode:screen}
+.tc:hover .face{box-shadow:0 18px 34px rgba(0,0,0,.7),0 0 0 1px rgba(243,201,105,.5)}
+.tc:hover .face::after{opacity:1}
+.tc .rr{position:absolute;top:6px;right:6px;z-index:2;font-size:10px;font-weight:800;padding:2px 6px;border-radius:5px;background:rgba(0,0,0,.75);color:var(--gold);letter-spacing:.04em}
+.tc .rr.SEC{background:linear-gradient(135deg,#ffe9a8,#c58b1c);color:#1a1306}
+.tc .rr.L{background:#e5483b;color:#fff}
+.tc .cn{font-size:12px;color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tc .cn b{color:var(--fg);font-weight:600}
+@media(max-width:560px){.cwall{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 10px}}
+
+.labs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px}
+.lab{display:grid;gap:12px;align-content:start}
+.lab .face{position:relative;aspect-ratio:5/7;max-width:100%;border-radius:18px;padding:9px;transition:transform .5s var(--ease)}
+.lab .face .art{position:relative;width:100%;height:100%;border-radius:11px;overflow:hidden;background:#000}
+.lab .face img{width:100%;height:100%;object-fit:cover}
+.lab .face .sheen{position:absolute;inset:0;mix-blend-mode:screen;background:linear-gradient(112deg,transparent 30%,rgba(255,255,255,.3) 48%,rgba(255,190,120,.16) 54%,transparent 70%);background-size:220% 100%;animation:sheen 5s ease-in-out infinite}
+@keyframes sheen{0%,100%{background-position:100% 0}50%{background-position:0 0}}
+.lab .face .lchip{position:absolute;top:10px;right:10px;font-size:10px;font-weight:800;letter-spacing:.12em;padding:5px 8px;border-radius:6px;text-transform:uppercase}
+.lab .face .lnm{position:absolute;left:0;right:0;bottom:0;padding:40px 14px 12px;background:linear-gradient(0deg,rgba(0,0,0,.9),transparent);display:flex;justify-content:space-between;align-items:flex-end}
+.lab .face .lnm b{display:block;font-family:var(--serif);font-weight:700;font-size:22px;color:#fff;letter-spacing:.04em;text-transform:uppercase}
+.lab .face .lnm small{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--lc)}
+.lab .face .lnm em{font-style:normal;font-size:10px;letter-spacing:.16em;color:var(--lc)}
+.lab:hover .face{transform:translateY(-6px) rotate(-1.5deg)}
+.lab p{font-size:14px;color:var(--mute)}
+.lab p b{color:var(--fg)}
+.lab.l0 .face{background:linear-gradient(135deg,#000,#3a0006 30%,#000 52%,#6a0610 74%,#000);box-shadow:0 30px 50px -20px #000,0 0 40px -8px #ff1a2e88;--lc:#ff4656}
+.lab.l0 .lchip{background:#000;color:#ff4656;box-shadow:0 0 0 1px #ff4656,0 0 12px #ff1a2e}
+.lab.l1 .face{background:linear-gradient(135deg,#6e0a10,#f2cf7a 24%,#a3121b 48%,#ffe2a0 74%,#6e0a10);box-shadow:0 30px 50px -20px #000,0 0 40px -8px #d3202f88;--lc:#ffd88a}
+.lab.l1 .lchip{background:linear-gradient(135deg,#ffe2a0,#c8101e 60%);color:#fff}
+.lab.l2 .face{background:conic-gradient(from 160deg,#fff,#eadcff,#fff3cf,#dcf3ff,#ffe1f1,#fff);box-shadow:0 30px 50px -20px #000,0 0 50px -6px #d8c8ffaa;--lc:#e9dcff}
+.lab.l2 .lchip{background:#fff;color:#5b2fb0}
+.lab.l3 .face{background:repeating-linear-gradient(90deg,#f4f1e8 0 2px,#e4dfd1 2px 3px);box-shadow:0 30px 50px -20px #000,0 0 34px -10px #ffffff77;--lc:#fff}
+.lab.l3 .lchip{background:#111;color:#fff;box-shadow:0 0 0 1px #fff}
+.lab.l3 img{filter:grayscale(1) contrast(1.6)}
+@media(max-width:900px){.labs{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 14px}}
+@media(max-width:560px){.lab .face .lnm em{display:none}.lab .face .lnm b{font-size:18px}.lab .face .lchip{font-size:9px;padding:4px 6px}}
+
+/* ---------- rabbit hole ---------- */
+.v-rabbit{--acc:#d1302a}
+.cases{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.case{position:relative;display:grid;grid-template-rows:auto 1fr;background:#0c0c0c;border:1px solid #222;border-radius:4px;overflow:hidden;transition:transform .5s var(--ease),border-color .3s}
+.case:hover{transform:translateY(-4px);border-color:#5a1a17}
+.case .ph{position:relative;aspect-ratio:16/10;max-width:100%;overflow:hidden;background:#141414}
+.case .ph img{width:100%;height:100%;object-fit:cover;filter:grayscale(1) contrast(1.25) brightness(.75);transition:filter .6s,transform 1.2s var(--ease)}
+.case:hover .ph img{filter:grayscale(.2) contrast(1.15) brightness(.85) sepia(.3);transform:scale(1.05)}
+.case .ph.none{display:grid;place-items:center;background:repeating-linear-gradient(0deg,#141414 0 22px,#101010 22px 24px)}
+.case .ph.none span{font:12px var(--mono);color:#555;letter-spacing:.2em}
+.case .no{position:absolute;left:10px;top:10px;font:600 11px var(--mono);letter-spacing:.14em;color:#e8e2d6;background:rgba(0,0,0,.65);padding:3px 7px}
+.stampv{position:absolute;right:10px;bottom:10px;font:800 12px var(--mono);letter-spacing:.14em;text-transform:uppercase;padding:4px 8px;border:2px solid currentColor;transform:rotate(-6deg);background:rgba(0,0,0,.55)}
+.stampv.debunked{color:#ff5a4f}.stampv.unsolved{color:#c58cff}.stampv.true{color:#4fe08a}.stampv.unproven{color:#ffc04d}
+.case .cb{padding:14px 14px 16px;display:grid;gap:8px;align-content:start;font-family:var(--mono)}
+.case h3{font-family:var(--font);font-size:20px;letter-spacing:-.02em}
+.case h3 em{color:#e0453d}
+.case p{font-size:13px;color:#a8a39a;line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.case .mt{display:flex;align-items:center;gap:10px;font-size:11px;color:#77736c;letter-spacing:.06em}
+.depth{display:inline-flex;align-items:flex-end;gap:2px;height:12px}
+.depth i{width:4px;background:#333;border-radius:1px}
+.depth i.on{background:#d1302a}
+.case .cr{font-size:10px;color:#4c4944}
+
+/* ---------- me / log ---------- */
+.me{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:14px}
+.profile{position:relative;border-radius:26px;overflow:hidden;background:#e9e9ea;min-height:460px;display:flex;align-items:flex-end}
+.profile img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 18%}
+.profile .pc{position:relative;width:100%;padding:90px 22px 22px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.88) 45%);display:grid;gap:4px}
+.profile h3{font-size:34px}
+.profile .role{color:var(--gold);font-size:14px;font-weight:600}
+.profile .co{color:#cfcfd4;font-size:14px}
+.copyrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.copy{font-size:13px;padding:7px 12px;border-radius:999px;border:1px solid var(--line-2);background:rgba(0,0,0,.4)}
+.copy.done{border-color:var(--ok);color:var(--ok)}
+.me-side{display:grid;gap:14px;align-content:start}
+.docs li{display:grid;gap:8px;padding:12px 0;border-bottom:1px solid var(--line)}
+.docs li:last-child{border-bottom:0}
+.docs .dl{display:flex;justify-content:space-between;gap:12px;font-size:15px}
+.docs .dl span{color:var(--mute);font-size:13px;text-align:right}
+.docs .note{font-size:12px;color:var(--dim)}
+.goals li{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)}
+.goals li:last-child{border-bottom:0}
+.goals input[type=checkbox]{appearance:none;-webkit-appearance:none;width:22px;height:22px;flex:none;border-radius:7px;border:1.5px solid var(--line-2);display:grid;place-items:center;cursor:pointer;margin:0}
+.goals input[type=checkbox]:checked{background:var(--gold);border-color:var(--gold)}
+.goals input[type=checkbox]:checked::after{content:"";width:6px;height:11px;border:solid var(--gold-ink);border-width:0 2.5px 2.5px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.goals label{flex:1;font-size:15px;cursor:pointer}
+.goals input:checked + label{color:var(--dim);text-decoration:line-through}
+.goals .del{font-size:12px;color:var(--dim)}
+.goal-add{display:flex;gap:8px;margin-top:10px}
+.goal-add input{flex:1;min-width:0;padding:10px 12px;border-radius:12px;border:1px solid var(--line-2);background:#000;font-size:16px}
+.goal-add button{padding:10px 14px;border-radius:12px;background:var(--fg);color:#000;font-weight:600;font-size:14px}
+.bearings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.bearings div{border:1px solid var(--line);border-radius:14px;padding:12px;font-size:14px;color:#d8d8dc}
+.bearings div b{display:block;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--gold);margin-bottom:4px}
+.bty-break{display:grid;gap:4px;font-size:13px;color:var(--mute)}
+.bty-break span{display:flex;justify-content:space-between;gap:10px}
+.bty-break b{color:var(--fg);font-variant-numeric:tabular-nums;font-weight:600}
+@media(max-width:900px){.me{grid-template-columns:minmax(0,1fr)}.profile{min-height:520px}}
+
+/* pinterest boards */
+.pinrail{padding-top:4px}
+.pcard{position:relative;flex:none;width:200px;aspect-ratio:3/4;border-radius:20px;overflow:hidden;scroll-snap-align:start;background:#111;box-shadow:0 14px 34px rgba(0,0,0,.5)}
+.pcard img{width:100%;height:100%;object-fit:cover;transition:transform 1s var(--ease)}
+.pcard:hover img{transform:scale(1.05)}
+.pcard span{position:absolute;inset:auto 0 0 0;padding:40px 14px 14px;background:linear-gradient(transparent,rgba(0,0,0,.88));display:grid;gap:2px}
+.pcard b{font-size:16px;line-height:1.2;letter-spacing:-.02em}
+.pcard i{font-style:normal;font-size:12px;font-weight:700;color:#ff5a5f}
+.install{margin-top:16px;padding:14px 16px;border-radius:16px;border:1px solid rgba(243,201,105,.4);background:rgba(243,201,105,.08);font-size:14px;color:#e8e2d0}
+.install b{color:var(--gold)}
+.install span{font-weight:600;color:#fff}
+.cover.boardsc{background:#0b0606}
+.mosaic{position:absolute;inset:-4% -2%;z-index:-2;display:grid;grid-template-columns:repeat(6,1fr);grid-auto-rows:220px;gap:8px;opacity:.55;transform:rotate(-4deg) scale(1.08);animation:drift 80s ease-in-out infinite alternate}
+.mosaic img{width:100%;height:100%;object-fit:cover;border-radius:12px}
+.cover.boardsc::after{background:linear-gradient(180deg,rgba(11,6,6,.5),rgba(11,6,6,.35) 35%,rgba(11,6,6,.85) 72%,#000)}
+.bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px}
+.bcard{display:grid;gap:12px;padding:10px;border-radius:24px;background:var(--card);border:1px solid var(--line);transition:transform .5s var(--ease),border-color .3s}
+.bcard:hover{transform:translateY(-4px);border-color:rgba(255,90,95,.5)}
+.bcol{display:grid;grid-template-columns:2fr 1fr;grid-template-rows:1fr 1fr;gap:6px;aspect-ratio:4/3;max-width:100%;border-radius:16px;overflow:hidden}
+.bcol img{width:100%;height:100%;object-fit:cover}
+.bcol img:first-child{grid-row:1 / 3}
+.bmeta{display:flex;align-items:center;gap:10px;padding:2px 6px 6px}
+.bmeta .pin{flex:none;width:30px;height:30px;border-radius:50%;background:#e60023;display:grid;place-items:center;font-weight:800;font-size:15px;color:#fff;font-family:var(--serif)}
+.bname{flex:1;min-width:0;font-weight:650;font-size:17px;letter-spacing:-.02em;line-height:1.2}
+.bopen{flex:none;font-size:13px;font-weight:700;color:#fff;background:#e60023;border-radius:999px;padding:7px 12px}
+@media(max-width:560px){.bgrid{grid-template-columns:minmax(0,1fr)}.mosaic{grid-template-columns:repeat(3,1fr);grid-auto-rows:170px}.pcard{width:160px}}
+.boards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.board{position:relative;border-radius:20px;overflow:hidden;aspect-ratio:3/4;max-width:100%;background:#111}
+.board img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.7;transition:opacity .4s,transform 1s var(--ease)}
+.board:hover img{opacity:.9;transform:scale(1.04)}
+.board::before{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(0,0,0,.3),transparent 30%,transparent 45%,rgba(0,0,0,.88));pointer-events:none}
+.board .bt{position:absolute;left:12px;right:12px;bottom:12px;z-index:3;display:grid;gap:8px}
+.board .bt b{font-size:17px;letter-spacing:-.02em;line-height:1.2;overflow-wrap:anywhere}
+.board .open-b{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 12px;border-radius:999px;background:#e60023;color:#fff;font-weight:700;font-size:13px}
+.board .pin{position:absolute;top:10px;left:10px;z-index:3;width:28px;height:28px;border-radius:50%;background:#e60023;display:grid;place-items:center;font-weight:800;font-size:14px;color:#fff;font-family:var(--serif)}
+.board .ren{position:absolute;top:9px;right:9px;z-index:4;font-size:12px;padding:5px 10px;border-radius:999px;background:rgba(0,0,0,.6);border:1px solid var(--line-2)}
+.board .ren-f{position:absolute;inset:auto 8px 8px 8px;z-index:5;display:flex;gap:6px}
+.board .ren-f input{flex:1;min-width:0;padding:9px 10px;border-radius:10px;border:1px solid var(--line-2);background:#000;font-size:16px}
+.board .ren-f button{padding:9px 10px;border-radius:10px;background:var(--fg);color:#000;font-size:13px;font-weight:600}
+@media(max-width:900px){.boards{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:560px){.boards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.addform{display:grid;grid-template-columns:1.2fr 1.6fr .9fr auto;gap:10px;align-items:end;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px}
+.field{display:grid;gap:6px;min-width:0}
+.field label{font-size:12px;color:var(--mute)}
+.field input,.field select{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--line-2);background:#000;font-size:16px}
+.form-msg{grid-column:1/-1;font-size:13px;color:var(--mute);min-height:1.2em}
+.form-msg.err{color:var(--bad)}
+.mine .row .del{position:relative;z-index:2;font-size:12px;color:var(--dim);padding:6px 8px}
+.empty{color:var(--mute);font-size:14px;padding:14px 0}
+.sync{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--mute)}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--dim)}
+.sync.on i{background:var(--ok)}
+@media(max-width:760px){.addform{grid-template-columns:minmax(0,1fr)}}
+
+.tools{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:18px 12px}
+.tool{display:grid;justify-items:center;gap:8px;text-align:center;font-size:12px;color:var(--mute)}
+.tool .ti{width:60px;height:60px;border-radius:16px;display:grid;place-items:center;font-weight:800;font-size:22px;color:#fff;background:var(--c,#333);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 8px 20px rgba(0,0,0,.4);transition:transform .4s var(--ease)}
+.tool:hover .ti{transform:translateY(-3px) scale(1.04)}
+@media(max-width:560px){.tools{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
+/* next island footer */
+.next{margin-top:clamp(60px,9vw,110px);border-top:1px solid var(--line);padding-block:28px calc(120px + env(safe-area-inset-bottom,0px));display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:16px}
+.next p{color:var(--mute);font-size:14px}
+.next a{display:inline-flex;align-items:center;gap:12px;font-size:clamp(24px,3vw,36px);font-weight:700;letter-spacing:-.03em}
+.next a em{font-family:var(--serif);font-weight:400;color:var(--acc)}
+.next a span{font-size:20px;transition:transform .4s var(--ease)}
+.next a:hover span{transform:translateX(6px)}
+.homefoot{padding:clamp(70px,10vw,120px) 0 calc(120px + env(safe-area-inset-bottom,0px));text-align:center}
+.homefoot q{display:block;font-family:var(--serif);font-style:italic;font-size:clamp(28px,4.4vw,52px);letter-spacing:-.02em;line-height:1.1;quotes:none}
+.homefoot p{color:var(--dim);font-size:13px;margin-top:14px}
+
+/* ---------- phone tab bar ---------- */
+.tabs{display:none}
+@media(max-width:1000px){
+  .tabs{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:55;
+    padding:6px var(--gut-r) calc(6px + env(safe-area-inset-bottom,0px)) var(--gut);
+    background:rgba(10,10,12,.92);border-top:1px solid var(--line);-webkit-backdrop-filter:saturate(170%) blur(18px);backdrop-filter:saturate(170%) blur(18px)}
+  .tabs a,.tabs button{display:grid;justify-items:center;gap:3px;font-size:10.5px;color:var(--mute);padding:5px 0}
+  .tabs svg{width:23px;height:23px}
+  .tabs .on{color:var(--gold)}
+  .tabs .find .fi{width:50px;height:50px;margin-top:-22px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff3cf,#f3c969 45%,#a8771f);display:grid;place-items:center;box-shadow:0 8px 24px rgba(243,201,105,.35),0 0 0 4px #0a0a0c}
+  .tabs .find .fi svg{width:34px;height:34px}
+}
+
+/* ---------- compass overlay ---------- */
+.pal{position:fixed;inset:0;z-index:90;background:radial-gradient(80% 60% at 50% 40%,rgba(30,24,10,.96),rgba(0,0,0,.97));display:flex;flex-direction:column;align-items:center;
+  padding:calc(env(safe-area-inset-top,0px) + 18px) var(--gut-r) calc(env(safe-area-inset-bottom,0px) + 18px) var(--gut);animation:fadeIn .25s;overflow-y:auto}
+@keyframes fadeIn{from{opacity:0}}
+.pal-in{width:100%;max-width:640px;display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:16px;background:#141416;border:1px solid var(--line-2)}
+.pal-in svg{width:18px;height:18px;color:var(--mute);flex:none}
+.pal-in input{flex:1;min-width:0;background:none;border:0;outline:none;font-size:18px}
+.pal-in button{font-size:12px;color:var(--mute);border:1px solid var(--line);border-radius:6px;padding:3px 8px}
+.dial{position:relative;width:min(400px,88vw);aspect-ratio:1;margin:clamp(20px,5vh,48px) auto 10px}
+.dial svg.face{position:absolute;inset:0;width:100%;height:100%}
+.dial .ndl{transform-origin:200px 200px;transition:transform 1s cubic-bezier(.34,1.56,.5,1)}
+.dial .isl{position:absolute;left:50%;top:50%;width:104px;margin:-22px 0 0 -52px;text-align:center;font-size:13px;font-weight:600;padding:6px 4px;border-radius:12px;color:var(--fg);transition:color .25s,background .25s}
+.dial .isl small{display:block;font-size:10px;font-weight:500;color:var(--mute);letter-spacing:.04em}
+.dial .isl:hover,.dial .isl:focus-visible,.dial .isl.hi{background:rgba(243,201,105,.14);color:var(--gold)}
+.dial-note{text-align:center;color:var(--mute);font-size:14px;max-width:40ch;min-height:2.6em}
+.dial-note b{color:var(--fg)}
+.pal-list{width:100%;max-width:640px;margin-top:14px;display:grid;gap:2px}
+.pal-list a{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px}
+.pal-list a[aria-selected="true"]{background:rgba(243,201,105,.14)}
+.pal-list .g{font-size:11px;color:var(--dim);margin-left:auto;flex:none;text-transform:uppercase;letter-spacing:.07em}
+.pal-list .t{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pal-list .d{font-size:12px;color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pal-list .x{min-width:0}
+.pal-empty{padding:18px;color:var(--mute);font-size:14px;text-align:center}
+.pal-close{margin-top:14px;font-size:13px;color:var(--mute);padding:8px 16px;border-radius:999px;border:1px solid var(--line)}
+
+/* sheets: folders + card */
+.sheet{position:fixed;inset:0;z-index:80;background:#000;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);animation:fadeIn .35s var(--ease)}
+.sheet-top{display:flex;align-items:flex-start;gap:16px;padding:16px var(--gut-r) 12px var(--gut)}
+.sheet-top h2{font-size:clamp(28px,4vw,48px)}
+.sheet-top .x{margin-left:auto;flex:none;font-size:14px;padding:8px 14px;border-radius:999px;background:rgba(255,255,255,.12)}
+.sheet-info{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:14px;color:var(--mute);margin-top:8px}
+.sheet-info b{color:var(--gold);font-weight:600}
+.sheet-lesson{font-family:var(--serif);font-style:italic;font-size:18px;color:#e9e5dc;margin-top:10px;max-width:60ch}
+.strip{flex:1;min-height:0;display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding:8px var(--gut-r) 16px var(--gut);scroll-padding-left:var(--gut)}
+.strip figure{margin:0;flex:none;height:100%;scroll-snap-align:center;display:flex;align-items:center}
+.strip img{max-height:100%;width:auto;max-width:min(88vw,900px);object-fit:contain;border-radius:14px}
+.sheet-nav{display:flex;align-items:center;justify-content:center;gap:16px;padding:6px 0 14px;font-size:13px;color:var(--mute)}
+.sheet-nav button{width:40px;height:40px;border-radius:50%;border:1px solid var(--line-2);font-size:18px}
+.cardview{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;align-items:start;padding:8px var(--gut-r) 24px var(--gut);max-width:1000px;margin:0 auto;width:100%}
+.cardview .big{width:100%;max-width:420px;justify-self:center;border-radius:16px;box-shadow:0 30px 70px rgba(0,0,0,.8),0 0 0 1px rgba(255,255,255,.1)}
+.cardview dl{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;margin:16px 0 0;font-size:14px}
+.cardview dt{color:var(--dim)}
+.cardview dd{margin:0}
+.cardview .eff{margin-top:16px;padding:14px 16px;border-radius:14px;background:var(--card);border:1px solid var(--line);font-size:14px;line-height:1.6;color:#d9d9de}
+.cardview .note{font-size:12px;color:var(--dim);margin-top:12px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+@media(max-width:760px){.cardview{grid-template-columns:minmax(0,1fr)}.cardview .big{max-width:300px}}
+
+@media (prefers-reduced-motion:reduce){
+  .wall,.cv-bg img,.fan img,.glow,.flick,.grain,.lab .face .sheen{animation:none}
+  *{transition-duration:.01ms!important}
+  .view.on{animation:none}
+}
+</style>
+
+</head>
+<body>
+<header class="bar" id="bar">
+ <a class="brand" href="#home"><img src="img/icon.webp" alt="" width="30" height="30"><span>Log Pose <small>· Yohan</small></span></a>
+ <nav aria-label="Islands" id="topnav"></nav>
+ <button class="pose-btn" type="button" data-pose aria-label="Open the Log Pose: islands and search">
+  <svg class="mini-pose" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.5" fill="#141416" stroke="#f3c969" stroke-width="1.2"/><g class="ndl" id="mini-ndl"><path d="M12 4 13.6 12h-3.2Z" fill="#e5483b"/><path d="M12 20 13.6 12h-3.2Z" fill="#a1a1a6"/></g><circle cx="12" cy="12" r="1.3" fill="#f5f5f7"/></svg>
+  Where to? <kbd>⌘K</kbd></button>
+</header>
+
+<main id="main">
+ <!-- ============ HOME ============ -->
+ <div class="view" id="v-home" data-view="home">
+  <section class="open" aria-label="Welcome">
+   <div class="tilt" aria-hidden="true"><div class="wall" id="wall"></div></div>
+   <div class="shade"></div>
+   <div class="open-copy"><div class="wrap">
+    <p class="clock"><span>Hà Nội <b id="t-hn">--:--</b></span><span>Colombo <b id="t-cmb">--:--</b></span><span id="t-date"></span></p>
+    <h1 id="hello">Good day, <em>Yohan.</em></h1>
+    <p class="rotor" id="rotor">Dream loudly. Protect your people. Keep moving.<small>Luffy · Freedom</small></p>
+    <div class="actions">
+     <button class="pill" type="button" data-pose><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Where to?</button>
+     <a class="pill ghost" href="#chart">The chart</a>
+    </div>
+    <p class="lit-cap" id="lit-cap"></p>
+   </div></div>
+  </section>
+  <div class="wrap">
+   <div class="today" id="today"></div>
+   <div class="chart-h" style="margin-top:clamp(40px,6vw,64px)"><div><p class="eyebrow" style="--acc:#ff5a5f">Pinterest</p><h2>Your <em>boards.</em></h2></div><a class="pill ghost" href="#boards">All boards →</a></div>
+   <div class="rail pinrail" id="pin-rail"></div>
+   <div class="install" id="install" hidden><b>Make it an app:</b> in Safari tap <span>Share</span> then <span>Add to Home Screen</span>. It opens full screen with your icon.</div>
+   <div class="chart-h" id="chart"><div><p class="eyebrow">Seven islands</p><h2>The <em>chart.</em></h2></div><p>Every site, guide, card and case file you've built, gathered on seven islands. Tap one to land.</p></div>
+   <div class="needle-note" id="needle-note"></div>
+   <div class="chart" id="chart-box">
+    <svg class="route" id="route" aria-hidden="true"><path id="route-path" d=""/></svg>
+    <svg class="ship" id="ship" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="15" fill="#000" stroke="#f3c969" stroke-width="1.2"/><path d="M9 19h16l-3 5H12z" fill="#f3c969"/><path d="M17 8v10M17 8l6 8h-6" fill="#f5f5f7" stroke="#f5f5f7" stroke-width=".8" stroke-linejoin="round"/></svg>
+    <div class="isles" id="isles"></div>
+   </div>
+   <footer class="homefoot"><q>People's dreams never end.</q><p>Blackbeard, on Jaya · Log Pose, built from your repos, artifacts and Grand Archive</p></footer>
+  </div>
+ </div>
+
+ <!-- ============ WORKSHOP ============ -->
+ <div class="view" id="v-workshop" data-view="workshop" style="--acc:#8fc3a6">
+  <section class="cover workshop"><div class="cv-bg"><img id="cv-plan" alt="" decoding="async"></div>
+   <div class="wrap cv-copy"><p class="eyebrow">Idea L Pack · Production Department</p><h1>The <em>Workshop.</em></h1>
+    <p class="cv-intro">Building 05 is planned to the centimetre, the monthly numbers are checked against the source, and every carton gets a QR code. This is where the work lives.</p>
+    <div class="cv-stats"><span><b>5</b> factory sites</span><span><b>6</b> guides</span><span><b>21</b>-sheet floor plan</span><span><b>7</b> Claude sessions</span></div></div></section>
+  <div class="wrap">
+   <section class="blk"><div class="head"><div><p class="eyebrow">Built for the factory</p><h2>Sites and <em>plans.</em></h2></div><p>The latest floor plan comes first: Layout R6, the final one, with the material route animated.</p></div>
+    <div class="sites" id="work-sites"></div></section>
+   <p class="sub">Guides and plans · Claude</p><div class="rows" id="work-docs"></div>
+   <p class="sub">Recent Claude sessions</p><div class="rows" id="work-chats"></div>
+   <p class="sub">Folders · Google Drive</p><div class="rows" id="work-drive"></div>
+   <div class="next" data-next></div>
+  </div>
+ </div>
+
+ <!-- ============ GRAND LINE ============ -->
+ <div class="view" id="v-grandline" data-view="grandline" style="--acc:#e5483b">
+  <section class="cover"><div class="cv-bg"><img id="cv-gl" alt="" decoding="async"></div>
+   <div class="wrap cv-copy"><p class="eyebrow">One Piece, anime and manga</p><h1>The Grand <em>Line.</em></h1>
+    <p class="cv-intro">“Anime is for losers.” You were completely wrong, and the archive proves it: the crew, your characters, every moment and every rating.</p>
+    <div class="cv-stats" id="gl-stats"></div></div></section>
+  <div class="wrap">
+   <section class="blk"><div class="head"><div><p class="eyebrow">Your archives</p><h2>Set <em>sail.</em></h2></div><p>The Grand Archive, the story of One Piece, trivia and the watch wall.</p></div><div class="sites" id="gl-sites"></div></section>
+   <section class="blk"><div class="head"><div><p class="eyebrow">From the Grand Archive</p><h2>Character <em>folders.</em></h2></div>
+    <div class="filters" role="group" aria-label="Filter folders"><button class="fbtn" type="button" data-f="all" aria-pressed="true">All</button><button class="fbtn" type="button" data-f="op" aria-pressed="false">One Piece</button><button class="fbtn" type="button" data-f="other" aria-pressed="false">Other worlds</button></div></div>
+    <div class="folders" id="folder-grid"></div></section>
+   <section class="blk"><div class="head"><div><p class="eyebrow">The Straw Hat Pirates</p><h2>Ten dreams. <em>One ship.</em></h2></div><p class="crew-total">Combined bounty <b id="crew-total"></b></p></div><div class="rail" id="crew-rail"></div></section>
+   <section class="blk"><div class="head"><div><p class="eyebrow">Watch log</p><h2>What you're <em>watching.</em></h2></div><p id="log-note"></p></div>
+    <div class="log"><div style="display:grid;gap:14px;min-width:0"><div class="stats" id="stats"></div><div class="panel"><h3>Watching now</h3><ul class="plain now" id="now"></ul></div></div>
+     <div class="panel"><h3>All-time top 10</h3><ol class="top" id="top10"></ol></div></div></section>
+   <p class="sub">Folders · Google Drive</p><div class="rows" id="gl-drive"></div>
+   <div class="next" data-next></div>
+  </div>
+ </div>
+
+ <!-- ============ CARD VAULT ============ -->
+ <div class="view" id="v-vault" data-view="vault" style="--acc:#f3c969">
+  <section class="cover vault"><div class="fan" id="fan" aria-hidden="true"></div>
+   <div class="wrap cv-copy"><p class="eyebrow">One Piece Card Game</p><h1>The Card <em>Vault.</em></h1>
+    <p class="cv-intro">Every card you've pulled, laid out on one wall. And four cards that exist nowhere else: the special editions made for your archive.</p>
+    <div class="cv-stats" id="vault-stats"></div></div></section>
+  <div class="wrap">
+   <section class="blk"><div class="head"><div><p class="eyebrow">Your collection</p><h2>My <em>cards.</em></h2></div>
+    <div class="filters" role="group" aria-label="Filter cards" id="card-filters"></div></div>
+    <div class="cwall" id="cwall"></div></section>
+   <section class="blk"><div class="head"><div><p class="eyebrow">Made for you · Special Card Lab</p><h2>Claude's <em>editions.</em></h2></div>
+    <p>Four special rarities designed for your archive. Each one has its own move. Open the Lab to try them with your hands.</p></div>
+    <div class="labs" id="labs"></div>
+    <div class="actions" style="margin-top:22px"><a class="pill acc" href="https://claude.ai/artifact/VmCTMStSS75uWt12rvGgRR" target="_blank" rel="noopener">Open the Card Lab ↗</a><a class="pill ghost" href="https://gomayoha.github.io/grand-archive-voyage/#vault" target="_blank" rel="noopener">Card vault in the Grand Archive ↗</a></div></section>
+   <div class="next" data-next></div>
+  </div>
+ </div>
+
+ <!-- ============ RABBIT HOLE ============ -->
+ <div class="view v-rabbit" id="v-rabbithole" data-view="rabbithole" style="--acc:#d1302a">
+  <section class="cover rabbit"><div class="cv-bg"><img id="cv-rh" alt="" decoding="async"></div><div class="flick"></div><div class="grain"></div>
+   <figure class="evidence" aria-hidden="true"><img id="cv-ev" alt=""><figcaption>EXHIBIT 15 · SUSPECT SKETCH · 1969</figcaption></figure>
+   <p class="classified" aria-hidden="true">CLASSIFIED</p>
+   <div class="wrap cv-copy"><p class="eyebrow">The Rabbit Hole Archive · 25 case files</p><h1>Down the <em>rabbit hole.</em></h1>
+    <p class="typed" id="typed" aria-label="Some of these were lies. Some were never solved. A few were true, and those are the ones that should keep you up at night."></p>
+    <div class="actions"><a class="pill acc" href="https://gomayoha.github.io/Mysteries/" target="_blank" rel="noopener">Open the archive ↗</a><button class="pill ghost" type="button" id="rand-case">Pull a random file</button></div></div></section>
+  <div class="wrap">
+   <section class="blk"><div class="head"><div><p class="eyebrow">Case index</p><h2>The <em>files.</em></h2></div>
+    <div class="filters" role="group" aria-label="Filter cases" id="case-filters"></div></div>
+    <div class="cases" id="cases"></div></section>
+   <div class="next" data-next></div>
+  </div>
+ </div>
+
+ <!-- ============ SANCTUARY ============ -->
+ <div class="view" id="v-sanctuary" data-view="sanctuary" style="--acc:#f0b76a">
+  <section class="cover sanct"><div class="glow"></div>
+   <div class="wrap cv-copy"><img class="cross" id="cv-cross" alt="" width="190" height="190"><p class="eyebrow">Faith and family</p><h1>The <em>Sanctuary.</em></h1>
+    <p class="verse">Thy word is a lamp unto my feet, and a light unto my path.<small>Psalm 119:105</small></p></div></section>
+  <div class="wrap">
+   <section class="blk"><div class="head"><div><p class="eyebrow">Behold</p><h2>The life of <em>Jesus.</em></h2></div><p>Every person He met, the Apostles, Mother Mary, the Saints, and the whole Bible as one scrolling story.</p></div><div class="sites" id="faith-sites"></div></section>
+   <section class="blk"><div class="head"><div><p class="eyebrow">For Shehansa</p><h2>Nangi's <em>A Levels.</em></h2></div><p id="nangi-note"></p></div><div class="sites" id="nangi-sites"></div></section>
+   <div class="next" data-next></div>
+  </div>
+ </div>
+
+ <!-- ============ BOARDS ============ -->
+ <div class="view" id="v-boards" data-view="boards" style="--acc:#ff5a5f">
+  <section class="cover boardsc"><div class="mosaic" id="mosaic" aria-hidden="true"></div>
+   <div class="wrap cv-copy"><p class="eyebrow">Pinterest · @yohandesilva54</p><h1>The <em>Boards.</em></h1>
+    <p class="cv-intro">The art you've saved, sorted by the worlds you love. Tap a board and it opens straight in Pinterest.</p>
+    <div class="actions"><a class="pill acc" href="https://www.pinterest.com/yohandesilva54/" target="_blank" rel="noopener">Your Pinterest profile ↗</a></div></div></section>
+  <div class="wrap">
+   <section class="blk"><div class="head"><div><p class="eyebrow">Five boards</p><h2>Saved <em>worlds.</em></h2></div><p>Add a new board any time from “Your links” in the Captain's Log; pick Pinterest and it shows up here.</p></div>
+    <div class="bgrid" id="board-grid"></div></section>
+   <div class="next" data-next></div>
+  </div>
+ </div>
+
+ <!-- ============ CAPTAIN'S LOG ============ -->
+ <div class="view" id="v-log" data-view="log" style="--acc:#6fb3e0">
+  <section class="cover logc">
+   <div class="wanted" aria-hidden="true"><span class="w">WANTED</span><span class="pp"><img id="wanted-img" alt=""></span><span class="doa">DEAD OR ALIVE</span><span class="nm">YOHAN</span><span class="bty" id="wanted-bty">฿ 0-</span><span class="mk">ASSISTANT PRODUCTION MANAGER</span></div>
+   <div class="wrap cv-copy"><p class="eyebrow">Yohan De Silva</p><h1>The captain's <em>log.</em></h1>
+    <p class="cv-intro">Your bounty rises with everything you build and every goal you tick. Below: your CV site, documents, goals, boards and links.</p>
+    <div class="cv-stats" id="bty-stats"></div></div></section>
+  <div class="wrap">
+   <section class="blk"><div class="me">
+    <div class="profile"><img id="me-img" alt="Yohan De Silva in a black shirt and patterned tie"><div class="pc">
+     <h3>Yohan De Silva</h3><p class="role">Assistant Production Manager</p>
+     <p class="co">IDEAL PACK VN · VSIP Bắc Ninh · since Nov 2025</p><p class="co">OTHM Level 7, Strategic Management &amp; Leadership</p>
+     <div class="copyrow"><button class="copy" type="button" data-copy="yohandesilva54@gmail.com">yohandesilva54@gmail.com</button><button class="copy" type="button" data-copy="+84 879 172 776">+84 879 172 776</button></div></div></div>
+    <div class="me-side">
+     <div class="rows" id="me-links" style="grid-template-columns:minmax(0,1fr)"></div>
+     <div class="panel"><h3>Your bounty</h3><div class="bty-break" id="bty-break"></div></div>
+     <div class="panel"><h3>Documents</h3><ul class="plain docs" id="docs"></ul></div>
+     <div class="panel"><h3>This season's goals</h3><ul class="plain goals" id="goals"></ul>
+      <form class="goal-add" id="goal-add"><label class="sr" for="goal-in">New goal</label><input id="goal-in" maxlength="90" placeholder="Add a goal" autocomplete="off"><button type="submit">Add</button></form></div>
+    </div></div></section>
+   <section class="blk"><div class="head"><div><p class="eyebrow">Add anything</p><h2>Your <em>links.</em></h2></div><p class="sync" id="sync"><i></i><span>Saved on this device</span></p></div>
+    <form class="addform" id="addform" novalidate>
+     <div class="field"><label for="al-title">Name</label><input id="al-title" maxlength="80" placeholder="e.g. OTD weekly sheet" autocomplete="off"></div>
+     <div class="field"><label for="al-url">Link</label><input id="al-url" inputmode="url" placeholder="https://…" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+     <div class="field"><label for="al-group">Island</label><select id="al-group"><option>Workshop</option><option>Grand Line</option><option>Card Vault</option><option>Sanctuary</option><option>Pinterest</option><option selected>Other</option></select></div>
+     <button class="pill" type="submit">Add link</button><p class="form-msg" id="form-msg"></p></form>
+    <div class="rows mine" id="my-links" style="margin-top:8px"></div></section>
+   <section class="blk"><div class="head"><div><p class="eyebrow">Everyday apps</p><h2>The <em>toolbox.</em></h2></div></div><div class="tools" id="toolbox"></div></section>
+   <div class="next" data-next></div>
+  </div>
+ </div>
+</main>
+
+<nav class="tabs" aria-label="Quick tabs">
+ <a href="#home" data-tab="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg>Home</a>
+ <a href="#workshop" data-tab="workshop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18"/></svg>Work</a>
+ <button class="find" type="button" data-pose aria-label="Log Pose: islands and search"><span class="fi"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="#141416"/><g class="ndl" id="tab-ndl" style="transform-origin:12px 12px;transition:transform 1.1s cubic-bezier(.34,1.56,.5,1)"><path d="M12 4.5 13.7 12h-3.4Z" fill="#e5483b"/><path d="M12 19.5 13.7 12h-3.4Z" fill="#d6d6da"/></g><circle cx="12" cy="12" r="1.4" fill="#f5f5f7"/></svg></span>Log Pose</button>
+ <a href="#grandline" data-tab="grandline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 18c3 2 6 2 9 0s6-2 9 0M5 15l2-8h10l2 8M12 7V3l5 3-5 1"/></svg>Grand Line</a>
+ <a href="#log" data-tab="log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0" stroke-linecap="round"/></svg>Log</a>
+</nav>
+
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+ <div class="sheet-top"><div style="min-width:0"><p class="eyebrow" id="sheet-series"></p><h2 id="sheet-title"></h2><div class="sheet-info" id="sheet-info"></div><p class="sheet-lesson" id="sheet-lesson"></p></div><button class="x" type="button" data-close>Close</button></div>
+ <div class="strip" id="strip" tabindex="0" aria-label="Pictures"></div>
+ <div class="sheet-nav"><button type="button" id="sh-prev" aria-label="Previous picture">‹</button><span id="sh-count" class="num"></span><button type="button" id="sh-next" aria-label="Next picture">›</button></div>
+</div>
+
+<div class="sheet" id="cardsheet" hidden role="dialog" aria-modal="true" aria-labelledby="cs-title">
+ <div class="sheet-top"><div style="min-width:0"><p class="eyebrow" id="cs-no" style="--acc:#f3c969"></p><h2 id="cs-title"></h2></div><button class="x" type="button" data-close>Close</button></div>
+ <div class="cardview" id="cardview"></div>
+ <div class="sheet-nav"><button type="button" id="cs-prev" aria-label="Previous card">‹</button><span id="cs-count" class="num"></span><button type="button" id="cs-next" aria-label="Next card">›</button></div>
+</div>
+
+<div class="pal" id="pal" hidden role="dialog" aria-modal="true" aria-label="Log Pose">
+ <div class="pal-in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+  <input id="pal-q" placeholder="Search sites, guides, cards, cases, characters…" autocomplete="off" spellcheck="false" aria-controls="pal-list"><button type="button" id="pal-x">Esc</button></div>
+ <div id="dial-wrap">
+  <div class="dial" id="dial">
+   <svg class="face" viewBox="0 0 400 400" aria-hidden="true">
+    <defs><radialGradient id="dg" cx="50%" cy="45%" r="60%"><stop offset="0" stop-color="#2a2212"/><stop offset="1" stop-color="#0b0906"/></radialGradient></defs>
+    <circle cx="200" cy="200" r="196" fill="url(#dg)" stroke="#f3c969" stroke-width="2"/>
+    <circle cx="200" cy="200" r="150" fill="none" stroke="rgba(243,201,105,.25)" stroke-width="1"/>
+    <g id="ticks"></g>
+    <g class="ndl" id="big-ndl"><path d="M200 70 212 200h-24Z" fill="#e5483b"/><path d="M200 330 212 200h-24Z" fill="#d6d6da"/></g>
+    <circle cx="200" cy="200" r="11" fill="#f5f5f7" stroke="#0b0906" stroke-width="3"/>
+   </svg>
+   <div id="isl-btns"></div>
+  </div>
+  <p class="dial-note" id="dial-note"></p>
+ </div>
+ <div class="pal-list" id="pal-list" role="listbox" hidden></div>
+ <button class="pal-close" type="button" id="pal-close">Close</button>
+</div>
+
+<script type="application/json" id="data">{"boards":[{"slug":"one-piece","name":"One Piece","u":"https://www.pinterest.com/yohandesilva54/one-piece/","pics":["img/pin-one-piece-0.webp","img/pin-one-piece-1.webp","img/pin-one-piece-2.webp","img/pin-one-piece-3.webp","img/pin-one-piece-4.webp","img/pin-one-piece-5.webp"]},{"slug":"re-zero","name":"Re:Zero","u":"https://www.pinterest.com/yohandesilva54/re-zero/","pics":["img/pin-re-zero-0.webp","img/pin-re-zero-1.webp","img/pin-re-zero-2.webp","img/pin-re-zero-3.webp","img/pin-re-zero-4.webp","img/pin-re-zero-5.webp"]},{"slug":"violet-evergarden","name":"Violet Evergarden","u":"https://www.pinterest.com/yohandesilva54/violet-evergarden/","pics":["img/pin-violet-evergarden-0.webp","img/pin-violet-evergarden-1.webp","img/pin-violet-evergarden-2.webp","img/pin-violet-evergarden-3.webp","img/pin-violet-evergarden-4.webp","img/pin-violet-evergarden-5.webp"]},{"slug":"smoking-behind-the-supermarket-with-you","name":"Smoking Behind the Supermarket with You","u":"https://www.pinterest.com/yohandesilva54/smoking-behind-the-supermarket-with-you/","pics":["img/pin-smoking-behind-the-supermarket-with-you-0.webp","img/pin-smoking-behind-the-supermarket-with-you-1.webp","img/pin-smoking-behind-the-supermarket-with-you-2.webp","img/pin-smoking-behind-the-supermarket-with-you-3.webp","img/pin-smoking-behind-the-supermarket-with-you-4.webp","img/pin-smoking-behind-the-supermarket-with-you-5.webp"]},{"slug":"omniscient-readers-viewpoint","name":"Omniscient Reader's Viewpoint","u":"https://www.pinterest.com/yohandesilva54/omniscient-readers-viewpoint/","pics":["img/pin-omniscient-readers-viewpoint-0.webp","img/pin-omniscient-readers-viewpoint-1.webp","img/pin-omniscient-readers-viewpoint-2.webp","img/pin-omniscient-readers-viewpoint-3.webp","img/pin-omniscient-readers-viewpoint-4.webp","img/pin-omniscient-readers-viewpoint-5.webp"]}],"vault":[{"no":"ST21-005","name":"Jinbe","rarity":"C","kind":"Character","colors":["Red"],"cost":2,"power":4000,"counter":1000,"attr":"Strike","types":"Fish-Man/Straw Hat Crew","effect":"-","set":"Gear 5 starter deck","crew":"Straw Hat Pirates","t":"img/tcg-ST21-005.webp","l":"img/tcgl-ST21-005.webp"},{"no":"OP13-002","name":"Portgas.D.Ace","rarity":"L","kind":"Leader","colors":["Red","Blue"],"cost":3,"power":6000,"counter":null,"attr":"Special","types":"Whitebeard Pirates","effect":"[On Your Opponent's Attack] [Once Per Turn] You may trash 1 card from your hand: Give up to 1 of your opponent's Leader or Character cards −2000 power during this battle.\n[DON!! x1] [Once Per Turn] When you take damage or your Character with 6000 base power or more is K.O.'d, draw 1 card.","set":"Carrying On His Will","crew":"The Emperors’ crews","t":"img/tcg-OP13-002.webp","l":"img/tcgl-OP13-002.webp"},{"no":"OP05-065","name":"San-Gorou","rarity":"C","kind":"Character","colors":["Purple"],"cost":6,"power":8000,"counter":1000,"attr":"Strike","types":"Straw Hat Crew","effect":"-","set":"Awakening of the New Era","crew":"Straw Hat Pirates","t":"img/tcg-OP05-065.webp","l":"img/tcgl-OP05-065.webp"},{"no":"EB03-042","name":"Koala","rarity":"SR","kind":"Character","colors":["Black"],"cost":4,"power":5000,"counter":1000,"attr":"Strike","types":"Dressrosa/Revolutionary Army","effect":"If your Leader has the {Revolutionary Army} type, this Character gains +4 cost.\n[Opponent's Turn] [On K.O.] Play up to 1 {Revolutionary Army} type Character card with a cost of 6 or less other than [Koala] or up to 1 [Nico Robin] with a cost of 6 or less from your hand or trash.","set":"Heroines Edition","crew":"Revolutionary Army","t":"img/tcg-EB03-042.webp","l":"img/tcgl-EB03-042.webp"},{"no":"OP13-081","name":"Koala","rarity":"C","kind":"Character","colors":["Black"],"cost":5,"power":6000,"counter":1000,"attr":"Strike","types":"Dressrosa/Revolutionary Army","effect":"If your Leader has the {Revolutionary Army} type, this Character gains +3 cost.\n[Activate: Main] [Once Per Turn] You may place 1 card from your trash at the bottom of your deck: Give up to 1 rested DON!! card to your Leader or 1 of your Characters.","set":"Carrying On His Will","crew":"Revolutionary Army","t":"img/tcg-OP13-081.webp","l":"img/tcgl-OP13-081.webp"},{"no":"OP15-044","name":"Koala","rarity":"C","kind":"Character","colors":["Blue"],"cost":3,"power":2000,"counter":1000,"attr":"Strike","types":"Dressrosa/Revolutionary Army","effect":"[Blocker]\n[On K.O.] Look at 3 cards from the top of your deck; reveal up to 1 {Dressrosa} type Event and add it to your hand. Then, place the rest at the bottom of your deck in any order.","set":"Adventure on Kami’s Island","crew":"Revolutionary Army","t":"img/tcg-OP15-044.webp","l":"img/tcgl-OP15-044.webp"},{"no":"ST26-003","name":"Nico Robin","rarity":"SR","kind":"Character","colors":["Purple"],"cost":3,"power":4000,"counter":2000,"attr":"Strike","types":"Straw Hat Crew","effect":"[On Play] DON!! −2 (You may return the specified number of DON!! cards from your field to your DON!! deck.): Add up to 1 DON!! card from your DON!! deck and set it as active.","set":"Purple/Black Luffy starter deck","crew":"Straw Hat Pirates","t":"img/tcg-ST26-003.webp","l":"img/tcgl-ST26-003.webp"},{"no":"OP13-032","name":"Nico Robin","rarity":"UC","kind":"Character","colors":["Green"],"cost":7,"power":7000,"counter":1000,"attr":"Strike","types":"FILM/Straw Hat Crew","effect":"[On Play] Up to 1 of your opponent's Characters with a cost of 8 or less cannot be rested until the end of your opponent's next End Phase.","set":"Carrying On His Will","crew":"Straw Hat Pirates","t":"img/tcg-OP13-032.webp","l":"img/tcgl-OP13-032.webp"},{"no":"OP15-087","name":"Nico Robin","rarity":"C","kind":"Character","colors":["Black"],"cost":5,"power":7000,"counter":null,"attr":"Strike","types":"Straw Hat Crew","effect":"If you have 10 or more cards in your trash, this Character gains [Blocker].\n[On Play] Draw 2 cards and trash 2 cards from your hand.","set":"Adventure on Kami’s Island","crew":"Straw Hat Pirates","t":"img/tcg-OP15-087.webp","l":"img/tcgl-OP15-087.webp"},{"no":"OP11-009","name":"Nico Robin","rarity":"C","kind":"Character","colors":["Red"],"cost":3,"power":4000,"counter":1000,"attr":"Strike","types":"Straw Hat Crew","effect":"[DON!! x2] [When Attacking] Give up to 1 of your opponent's Characters −2000 power until the end of your opponent's next turn.","set":"A Fist of Divine Speed","crew":"Straw Hat Pirates","t":"img/tcg-OP11-009.webp","l":"img/tcgl-OP11-009.webp"},{"no":"OP14-112","name":"Boa Hancock","rarity":"SR","kind":"Character","colors":["Yellow"],"cost":9,"power":10000,"counter":null,"attr":"Special","types":"The Seven Warlords of the Sea/Kuja Pirates","effect":"[On Play] If your Leader has the {The Seven Warlords of the Sea} type, add up to 1 card from the top of your deck to the top of your Life cards. Then, add up to 1 card from the top of your opponent's Life cards to the owner's hand.","set":"The Azure Sea’s Seven","crew":"The Warlords","t":"img/tcg-OP14-112.webp","l":"img/tcgl-OP14-112.webp"},{"no":"EB03-026","name":"Boa Hancock","rarity":"SR","kind":"Character","colors":["Blue"],"cost":6,"power":8000,"counter":null,"attr":"Special","types":"The Seven Warlords of the Sea/Kuja Pirates","effect":"[On Play] If your opponent has 5 or more cards in their hand, your opponent places 1 card from their hand at the bottom of their deck.\n[Activate: Main] [Once Per Turn] You may place 1 of your Characters at the bottom of the owner's deck: Give your Leader and 1 Character up to 1 rested DON!! card each.","set":"Heroines Edition","crew":"The Warlords","t":"img/tcg-EB03-026.webp","l":"img/tcgl-EB03-026.webp"},{"no":"PRB02-017","name":"Boa Hancock","rarity":"SR","kind":"Character","colors":["Yellow"],"cost":5,"power":7000,"counter":null,"attr":"Special","types":"FILM/The Seven Warlords of the Sea/Kuja Pirates","effect":"[On Play] You may trash 1 card with a [Trigger] from your hand: Your opponent's rested Leader or up to 1 of your opponent's Characters other than [Monkey.D.Luffy] cannot attack until the end of your opponent's next End Phase.","set":"The Best vol. 2","crew":"The Warlords","t":"img/tcg-PRB02-017.webp","l":"img/tcgl-PRB02-017.webp"},{"no":"OP14-031","name":"Nami","rarity":"SR","kind":"Character","colors":["Green"],"cost":4,"power":2000,"counter":1000,"attr":"Special","types":"FILM/Straw Hat Crew","effect":"[Blocker]\n[On Play] Rest up to 2 of your opponent's Characters with a cost of 8 or less. Then, set up to 5 of your DON!! cards as active at the end of this turn.","set":"The Azure Sea’s Seven","crew":"Straw Hat Pirates","t":"img/tcg-OP14-031.webp","l":"img/tcgl-OP14-031.webp"},{"no":"OP11-054","name":"Nami","rarity":"SR","kind":"Character","colors":["Blue"],"cost":5,"power":6000,"counter":1000,"attr":"Special","types":"Straw Hat Crew","effect":"[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.)\n[On Play] If your Leader is multicolored, draw 3 cards and place 2 cards from your hand at the top or bottom of your deck in any order.","set":"A Fist of Divine Speed","crew":"Straw Hat Pirates","t":"img/tcg-OP11-054.webp","l":"img/tcgl-OP11-054.webp"},{"no":"OP15-086","name":"Nami","rarity":"SR","kind":"Character","colors":["Black"],"cost":8,"power":6000,"counter":null,"attr":"Special","types":"Straw Hat Crew","effect":"[On Play] If your Leader has the {Straw Hat Crew} type, play up to 1 {Straw Hat Crew} type Character with a cost of 7 or less from your trash. The Character played with this effect gains [Rush] during this turn.","set":"Adventure on Kami’s Island","crew":"Straw Hat Pirates","t":"img/tcg-OP15-086.webp","l":"img/tcgl-OP15-086.webp"},{"no":"OP15-108","name":"Nami","rarity":"R","kind":"Character","colors":["Yellow"],"cost":1,"power":2000,"counter":2000,"attr":"Special","types":"Sky Island/Straw Hat Crew","effect":"[On Play] Look at 3 cards from the top of your deck; reveal up to 1 {Sky Island} type card and add it to your hand. Then, place the rest at the bottom of your deck in any order.","set":"Adventure on Kami’s Island","crew":"Straw Hat Pirates","t":"img/tcg-OP15-108.webp","l":"img/tcgl-OP15-108.webp"},{"no":"OP15-091","name":"Margarita","rarity":"C","kind":"Character","colors":["Black"],"cost":1,"power":null,"counter":2000,"attr":"Wisdom","types":"The Owner of Cindry's Shadow","effect":"[On Play] Place up to 1 card from your opponent's trash at the bottom of the owner's deck.","set":"Adventure on Kami’s Island","crew":"Thriller Bark","t":"img/tcg-OP15-091.webp","l":"img/tcgl-OP15-091.webp"},{"no":"OP14-007","name":"Jewelry Bonney","rarity":"C","kind":"Character","colors":["Red"],"cost":6,"power":7000,"counter":2000,"attr":"Special","types":"Supernovas/Bonney Pirates","effect":"-","set":"The Azure Sea’s Seven","crew":"The Worst Generation","t":"img/tcg-OP14-007.webp","l":"img/tcgl-OP14-007.webp"},{"no":"OP13-109","name":"Jewelry Bonney","rarity":"UC","kind":"Character","colors":["Yellow"],"cost":5,"power":6000,"counter":1000,"attr":"Special","types":"Supernovas/Bonney Pirates","effect":"If this Character would be removed from the field by your opponent's effect, you may turn 1 card from the top of your Life cards face-up instead.","set":"Carrying On His Will","crew":"The Worst Generation","t":"img/tcg-OP13-109.webp","l":"img/tcgl-OP13-109.webp"},{"no":"ST21-004","name":"Jewelry Bonney","rarity":"C","kind":"Character","colors":["Red"],"cost":1,"power":3000,"counter":null,"attr":"Special","types":"Egghead/Bonney Pirates","effect":"[DON!! x2] [On K.O.] Draw 1 card.","set":"Gear 5 starter deck","crew":"The Worst Generation","t":"img/tcg-ST21-004.webp","l":"img/tcgl-ST21-004.webp"},{"no":"OP13-064","name":"Gol.D.Roger","rarity":"SR","kind":"Character","colors":["Purple"],"cost":10,"power":13000,"counter":null,"attr":"Slash","types":"King of the Pirates/Roger Pirates","effect":"Your Leader and all of your Characters that do not have a type including \"Roger Pirates\" have their effects negated.\n[On Play] DON!! −3: Your Leader gains +2000 power until the end of your opponent's next End Phase. Then, give all of your opponent's Characters −2000 power until the end of your opponent's next End Phase.","set":"Carrying On His Will","crew":"The Emperors’ crews","t":"img/tcg-OP13-064.webp","l":"img/tcgl-OP13-064.webp"},{"no":"ST23-002","name":"Shanks","rarity":"SR","kind":"Character","colors":["Red"],"cost":9,"power":10000,"counter":null,"attr":"Slash","types":"The Four Emperors/Red-Haired Pirates","effect":"If your opponent has a Character with 8000 base power or more, give this card in your hand −3 cost.\n[On Play] If your Leader has the {Red-Haired Pirates} type or is [Uta], your Leader gains +2000 power until the end of your opponent's next End Phase.","set":"Red Shanks starter deck","crew":"The Emperors’ crews","t":"img/tcg-ST23-002.webp","l":"img/tcgl-ST23-002.webp"},{"no":"OP13-023","name":"Uta","rarity":"SR","kind":"Character","colors":["Green"],"cost":4,"power":5000,"counter":1000,"attr":"Special","types":"FILM","effect":"[On Play] Set up to 2 of your DON!! cards as active. Then, you cannot play Character cards with a base cost of 5 or more during this turn.\n[On K.O.] Play up to 1 Character card with a cost of 5 or less from your hand rested.","set":"Carrying On His Will","crew":"From the films","t":"img/tcg-OP13-023.webp","l":"img/tcgl-OP13-023.webp"},{"no":"EB03-031","name":"Vinsmoke Reiju","rarity":"SR","kind":"Character","colors":["Purple"],"cost":5,"power":5000,"counter":1000,"attr":"Special","types":"The Vinsmoke Family/GERMA 66","effect":"[Your Turn] [On Play] DON!! −1: If your Leader is [Sanji], activate the [Main] effect of up to 1 Event card with a cost of 7 or less in your trash.","set":"Heroines Edition","crew":"Across the Grand Line","t":"img/tcg-EB03-031.webp","l":"img/tcgl-EB03-031.webp"},{"no":"OP13-042","name":"Edward.Newgate","rarity":"SR","kind":"Character","colors":["Blue"],"cost":10,"power":12000,"counter":null,"attr":"Special","types":"The Four Emperors/Whitebeard Pirates","effect":"[Blocker]\n[On Play] Draw 2 cards and trash 1 card from your hand. Then, give your Leader and 1 Character up to 2 rested DON!! cards each.","set":"Carrying On His Will","crew":"The Emperors’ crews","t":"img/tcg-OP13-042.webp","l":"img/tcgl-OP13-042.webp"},{"no":"OP09-009","name":"Benn.Beckman","rarity":"SR","kind":"Character","colors":["Red"],"cost":7,"power":7000,"counter":1000,"attr":"Ranged","types":"Red-Haired Pirates","effect":"[On Play] Trash up to 1 of your opponent's Characters with 6000 power or less.","set":"Emperors in the New World","crew":"The Emperors’ crews","t":"img/tcg-OP09-009.webp","l":"img/tcgl-OP09-009.webp"},{"no":"OP13-082","name":"Five Elders","rarity":"SR","kind":"Character","colors":["Black"],"cost":10,"power":12000,"counter":null,"attr":"Slash/Special","types":"Celestial Dragons/Five Elders","effect":"[Activate: Main] If your Leader is [Imu], you may rest 1 of your DON!! cards and trash 1 card from your hand: Trash all of your Characters and play up to 5 {Five Elders} type Character cards with 5000 power and different card names from your trash.","set":"Carrying On His Will","crew":"The World Government","t":"img/tcg-OP13-082.webp","l":"img/tcgl-OP13-082.webp"},{"no":"OP09-048","name":"Dracule Mihawk","rarity":"SR","kind":"Character","colors":["Blue"],"cost":6,"power":7000,"counter":null,"attr":"Slash","types":"Cross Guild","effect":"[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.)\n[On Play] Draw 2 cards and trash 1 card from your hand.","set":"Emperors in the New World","crew":"The Warlords","t":"img/tcg-OP09-048.webp","l":"img/tcgl-OP09-048.webp"},{"no":"OP09-069","name":"Trafalgar Law","rarity":"R","kind":"Character","colors":["Purple"],"cost":1,"power":2000,"counter":1000,"attr":"Slash","types":"Heart Pirates","effect":"[On Play] Look at 4 cards from the top of your deck; reveal up to 1 {Straw Hat Crew} or {Heart Pirates} type card with a cost of 2 or more and add it to your hand. Then, place the rest at the bottom of your deck in any order.","set":"Emperors in the New World","crew":"The Worst Generation","t":"img/tcg-OP09-069.webp","l":"img/tcgl-OP09-069.webp"},{"no":"OP15-040","name":"Viola","rarity":"R","kind":"Character","colors":["Blue"],"cost":1,"power":2000,"counter":2000,"attr":"Special","types":"Dressrosa/Donquixote Pirates","effect":"[On Play] Look at 3 cards from the top of your deck; reveal up to 1 {Dressrosa} type card and add it to your hand. Then, place the rest at the bottom of your deck in any order.","set":"Adventure on Kami’s Island","crew":"Dressrosa","t":"img/tcg-OP15-040.webp","l":"img/tcgl-OP15-040.webp"},{"no":"OP13-037","name":"Roronoa Zoro","rarity":"R","kind":"Character","colors":["Green"],"cost":4,"power":5000,"counter":1000,"attr":"Slash","types":"FILM/Supernovas/Straw Hat Crew","effect":"[On Play] If your Leader has the {FILM} or {Straw Hat Crew} type, set up to 2 of your DON!! cards as active.\n[End of Your Turn] Set this Character as active.","set":"Carrying On His Will","crew":"Straw Hat Pirates","t":"img/tcg-OP13-037.webp","l":"img/tcgl-OP13-037.webp"},{"no":"OP14-015","name":"Roronoa Zoro","rarity":"R","kind":"Character","colors":["Red"],"cost":7,"power":8000,"counter":null,"attr":"Slash","types":"Supernovas/Straw Hat Crew","effect":"[Rush] (This card can attack on the turn in which it is played.)\n[When Attacking] Give up to 1 of your opponent's Characters −1000 power during this turn.","set":"The Azure Sea’s Seven","crew":"Straw Hat Pirates","t":"img/tcg-OP14-015.webp","l":"img/tcgl-OP14-015.webp"},{"no":"EB02-019","name":"Roronoa Zoro","rarity":"R","kind":"Character","colors":["Green"],"cost":4,"power":5000,"counter":1000,"attr":"Slash","types":"East Blue/Straw Hat Crew","effect":"If your opponent has 2 or more Characters, this Character can attack Characters on the turn in which it is played.\n[On Play] If your Leader has the {Straw Hat Crew} type, rest up to 1 of your opponent's Characters with a cost of 4 or less.","set":"Anime 25th Collection","crew":"Straw Hat Pirates","t":"img/tcg-EB02-019.webp","l":"img/tcgl-EB02-019.webp"},{"no":"OP13-030","name":"Tony Tony.Chopper","rarity":"UC","kind":"Character","colors":["Green"],"cost":5,"power":6000,"counter":1000,"attr":"Strike","types":"Animal/FILM/Straw Hat Crew","effect":"[On Play] Set up to 2 of your DON!! cards as active.","set":"Carrying On His Will","crew":"Straw Hat Pirates","t":"img/tcg-OP13-030.webp","l":"img/tcgl-OP13-030.webp"},{"no":"OP10-087","name":"Tony Tony.Chopper","rarity":"UC","kind":"Character","colors":["Black"],"cost":2,"power":null,"counter":1000,"attr":"Strike","types":"Animal/Dressrosa/Straw Hat Crew","effect":"[Activate: Main] You may rest this Character and 1 of your {Dressrosa} type Leader or Stage cards: If your opponent has 5 or more cards in their hand, your opponent trashes 1 card from their hand. Then, trash 2 cards from the top of your deck.","set":"Royal Blood","crew":"Straw Hat Pirates","t":"img/tcg-OP10-087.webp","l":"img/tcgl-OP10-087.webp"},{"no":"OP15-089","name":"Franky","rarity":"UC","kind":"Character","colors":["Black"],"cost":5,"power":6000,"counter":2000,"attr":"Strike","types":"Straw Hat Crew","effect":"-","set":"Adventure on Kami’s Island","crew":"Straw Hat Pirates","t":"img/tcg-OP15-089.webp","l":"img/tcgl-OP15-089.webp"},{"no":"ST10-005","name":"Jinbe","rarity":"C","kind":"Character","colors":["Red"],"cost":2,"power":2000,"counter":2000,"attr":"Strike","types":"Fish-Man/Straw Hat Crew","effect":"[DON!! x1] [When Attacking] Give up to 1 of your opponent's Characters −2000 power during this turn.","set":"The Three Captains starter deck","crew":"Straw Hat Pirates","t":"img/tcg-ST10-005.webp","l":"img/tcgl-ST10-005.webp"},{"no":"ST21-002","name":"Usopp","rarity":"C","kind":"Character","colors":["Red"],"cost":2,"power":3000,"counter":2000,"attr":"Ranged","types":"Straw Hat Crew","effect":"[DON!! x2] [Opponent's Turn] This Character gains +2000 power.","set":"Gear 5 starter deck","crew":"Straw Hat Pirates","t":"img/tcg-ST21-002.webp","l":"img/tcgl-ST21-002.webp"},{"no":"ST18-001","name":"Uso-Hachi","rarity":"C","kind":"Character","colors":["Purple"],"cost":3,"power":3000,"counter":2000,"attr":"Ranged","types":"Straw Hat Crew","effect":"[On Play] If you have 8 or more DON!! cards on your field, rest up to 1 of your opponent's Characters with a cost of 5 or less.","set":"Purple Luffy starter deck","crew":"Straw Hat Pirates","t":"img/tcg-ST18-001.webp","l":"img/tcgl-ST18-001.webp"},{"no":"OP15-107","name":"Tony Tony.Chopper","rarity":"UC","kind":"Character","colors":["Yellow"],"cost":4,"power":6000,"counter":1000,"attr":"Strike","types":"Animal/Sky Island/Straw Hat Crew","effect":"-","set":"Adventure on Kami’s Island","crew":"Straw Hat Pirates","t":"img/tcg-OP15-107.webp","l":"img/tcgl-OP15-107.webp"},{"no":"OP14-043","name":"Aladine","rarity":"R","kind":"Character","colors":["Blue"],"cost":4,"power":5000,"counter":1000,"attr":"Slash","types":"Merfolk/The Sun Pirates","effect":"[On Play] Play up to 1 {Fish-Man} or {Merfolk} type Character card with a cost of 3 or less from your hand.\n[On K.O.] Draw 1 card.","set":"The Azure Sea’s Seven","crew":"Across the Grand Line","t":"img/tcg-OP14-043.webp","l":"img/tcgl-OP14-043.webp"},{"no":"OP06-036","name":"Ryuma","rarity":"R","kind":"Character","colors":["Green"],"cost":4,"power":6000,"counter":null,"attr":"Slash","types":"Land of Wano/Thriller Bark Pirates","effect":"[On Play]/[On K.O.] K.O. up to 1 of your opponent's rested Characters with a cost of 4 or less.","set":"Wings of the Captain","crew":"Thriller Bark","t":"img/tcg-OP06-036.webp","l":"img/tcgl-OP06-036.webp"},{"no":"OP14-027","name":"Shanks","rarity":"R","kind":"Character","colors":["Green"],"cost":7,"power":9000,"counter":null,"attr":"Slash","types":"East Blue/The Four Emperors/Red-Haired Pirates","effect":"[Your Turn] When this Character becomes rested, rest up to 1 of your opponent's Characters with 7000 base power or less.\n[Opponent's Turn] If this Character is rested, give all of your opponent's Characters −1000 power.","set":"The Azure Sea’s Seven","crew":"The Emperors’ crews","t":"img/tcg-OP14-027.webp","l":"img/tcgl-OP14-027.webp"},{"no":"OP14-016","name":"X.Drake","rarity":"R","kind":"Character","colors":["Red"],"cost":5,"power":7000,"counter":null,"attr":"Slash","types":"Supernovas/Navy/Drake Pirates","effect":"[Opponent's Turn] [Once Per Turn] If your {Supernovas} type Character would be removed from the field by your opponent's effect, you may give your Leader −2000 power during this turn instead.\n[DON!! x1] [When Attacking] Give up to 1 of your opponent's Characters −2000 power during this turn.","set":"The Azure Sea’s Seven","crew":"The Worst Generation","t":"img/tcg-OP14-016.webp","l":"img/tcgl-OP14-016.webp"},{"no":"OP14-074","name":"Monet","rarity":"R","kind":"Character","colors":["Purple"],"cost":5,"power":6000,"counter":1000,"attr":"Special","types":"Punk Hazard/Donquixote Pirates","effect":"[On Play] If your Leader has the {Donquixote Pirates} type, add up to 1 DON!! card from your DON!! deck and set it as active.\n[On K.O.] Draw 2 cards and trash 1 card from your hand. Then, add up to 2 DON!! cards from your DON!! deck and rest them.","set":"The Azure Sea’s Seven","crew":"Dressrosa","t":"img/tcg-OP14-074.webp","l":"img/tcgl-OP14-074.webp"},{"no":"OP03-110","name":"Charlotte Smoothie","rarity":"R","kind":"Character","colors":["Yellow"],"cost":4,"power":5000,"counter":1000,"attr":"Special","types":"Big Mom Pirates","effect":"[When Attacking] You may add 1 card from the top or bottom of your Life cards to your hand: This Character gains +2000 power during this battle.","set":"The Best","crew":"Across the Grand Line","t":"img/tcg-OP03-110_p3.webp","l":"img/tcgl-OP03-110_p3.webp"},{"no":"OP14-023","name":"Kikunojo","rarity":"R","kind":"Character","colors":["Green"],"cost":1,"power":2000,"counter":2000,"attr":"Slash","types":"Land of Wano/The Akazaya Nine","effect":"[End of Your Turn] Set this Character as active.","set":"The Azure Sea’s Seven","crew":"Across the Grand Line","t":"img/tcg-OP14-023.webp","l":"img/tcgl-OP14-023.webp"},{"no":"OP13-114","name":"S-Snake","rarity":"R","kind":"Character","colors":["Yellow"],"cost":4,"power":5000,"counter":1000,"attr":"Special","types":"Seraphim/Egghead","effect":"[On Play]/[When Attacking] You may turn 1 card from the top of your Life cards face-up: Give up to 1 of your opponent's Characters −2000 power during this turn.","set":"Carrying On His Will","crew":"The World Government","t":"img/tcg-OP13-114.webp","l":"img/tcgl-OP13-114.webp"},{"no":"OP13-017","name":"Monkey.D.Dragon","rarity":"R","kind":"Character","colors":["Red"],"cost":6,"power":7000,"counter":1000,"attr":"Special","types":"Revolutionary Army","effect":"[Once Per Turn] If your {Revolutionary Army} type Character would be removed from the field by your opponent's effect, you may give this Character −2000 power during this turn instead.","set":"Carrying On His Will","crew":"Revolutionary Army","t":"img/tcg-OP13-017.webp","l":"img/tcgl-OP13-017.webp"},{"no":"OP14-092","name":"Mr.3(Galdino)","rarity":"R","kind":"Character","colors":["Black"],"cost":4,"power":6000,"counter":null,"attr":"Special","types":"Baroque Works","effect":"[Opponent's Turn] [Once Per Turn] If this Character would be K.O.'d, you may place 3 cards from your trash at the bottom of your deck in any order instead.","set":"The Azure Sea’s Seven","crew":"The Warlords","t":"img/tcg-OP14-092.webp","l":"img/tcgl-OP14-092.webp"},{"no":"OP13-091","name":"St. Marcus Mars","rarity":"R","kind":"Character","colors":["Black"],"cost":6,"power":5000,"counter":1000,"attr":"Special","types":"Celestial Dragons/Five Elders","effect":"If you have 7 or more cards in your trash, this Character cannot be removed from the field by your opponent's effects and gains [Blocker].\n[On Play] You may trash 1 card from your hand: K.O. up to 1 of your opponent's Characters with a base cost of 5 or less.","set":"Carrying On His Will","crew":"The World Government","t":"img/tcg-OP13-091.webp","l":"img/tcgl-OP13-091.webp"},{"no":"OP14-061","name":"Vergo","rarity":"R","kind":"Character","colors":["Purple"],"cost":5,"power":7000,"counter":null,"attr":"Strike","types":"Punk Hazard/Navy/Donquixote Pirates","effect":"[Once Per Turn] If your {Donquixote Pirates} type Character would be removed from the field by your opponent's effect, you may return 1 DON!! card from your field to your DON!! deck instead.\n[When Attacking] DON!! −1: Give up to 1 of your opponent's Characters −2000 power during this turn.","set":"The Azure Sea’s Seven","crew":"Dressrosa","t":"img/tcg-OP14-061.webp","l":"img/tcgl-OP14-061.webp"},{"no":"P-079","name":"Lim","rarity":"P","kind":"Character","colors":["Green"],"cost":2,"power":null,"counter":1000,"attr":"Wisdom","types":"ODYSSEY","effect":"[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.)\n[End of Your Turn] If you have 2 or more rested {ODYSSEY} type Characters, set this Character as active.","set":"Championship 25–26 event pack (finalist)","crew":"From the films","t":"img/tcg-P-079_p2.webp","l":"img/tcgl-P-079_p2.webp"},{"no":"P-029","name":"Bartolomeo","rarity":"P","kind":"Character","colors":["Green"],"cost":2,"power":3000,"counter":1000,"attr":"Special","types":"FILM/Supernovas/Barto Club","effect":"[End of Your Turn] You may rest this Character: Set up to 1 of your {FILM} type Characters other than [Bartolomeo] as active.","set":"The Best","crew":"The Worst Generation","t":"img/tcg-P-029_p3.webp","l":"img/tcgl-P-029_p3.webp"},{"no":"OP09-001","name":"Shanks","rarity":"L","kind":"Leader","colors":["Red"],"cost":5,"power":5000,"counter":null,"attr":"Slash","types":"The Four Emperors/Red-Haired Pirates","effect":"[Once Per Turn] This effect can be activated when your opponent attacks. Give up to 1 of your opponent's Leader or Character cards −1000 power during this turn.","set":"Red Shanks starter deck","crew":"The Emperors’ crews","t":"img/tcg-OP09-001_p2.webp","l":"img/tcgl-OP09-001_p2.webp"},{"no":"OP09-061","name":"Monkey.D.Luffy","rarity":"L","kind":"Leader","colors":["Purple","Black"],"cost":4,"power":5000,"counter":null,"attr":"Strike","types":"The Four Emperors/Straw Hat Crew","effect":"[DON!! x1] All of your Characters gain +1 cost.\n[Your Turn] [Once Per Turn] When 2 or more DON!! cards on your field are returned to your DON!! deck, add up to 1 DON!! card from your DON!! deck and set it as active, and add up to 1 additional DON!! card and rest it.","set":"Purple/Black Luffy starter deck","crew":"Straw Hat Pirates","t":"img/tcg-OP09-061_p2.webp","l":"img/tcgl-OP09-061_p2.webp"},{"no":"OP14-079","name":"Crocodile","rarity":"L","kind":"Leader","colors":["Black"],"cost":5,"power":5000,"counter":null,"attr":"Special","types":"The Seven Warlords of the Sea/Baroque Works","effect":"All of your opponent's Characters cannot be removed from the field by your effects.\n[Activate: Main] [Once Per Turn] You may K.O. 1 of your Characters with a type including \"Baroque Works\": Give up to 1 of your opponent's Characters −10 cost during this turn. Then, you may trash 2 cards from the top of your deck.","set":"The Azure Sea’s Seven","crew":"The Warlords","t":"img/tcg-OP14-079.webp","l":"img/tcgl-OP14-079.webp"},{"no":"OP14-041","name":"Boa Hancock","rarity":"L","kind":"Leader","colors":["Blue","Yellow"],"cost":4,"power":5000,"counter":null,"attr":"Special","types":"The Seven Warlords of the Sea/Kuja Pirates","effect":"[Opponent's Turn] When you play a Character, draw 1 card.\n[DON!! x1] [Once Per Turn] When one of your {Amazon Lily} or {Kuja Pirates} type Characters with 5000 base power or more is K.O.'d, add up to 1 card from the top of your opponent's Life cards to the owner's hand.","set":"The Azure Sea’s Seven","crew":"The Warlords","t":"img/tcg-OP14-041.webp","l":"img/tcgl-OP14-041.webp"},{"no":"OP15-022","name":"Brook","rarity":"L","kind":"Leader","colors":["Green","Black"],"cost":4,"power":5000,"counter":null,"attr":"Slash","types":"Straw Hat Crew","effect":"Under the rules of this game, you do not lose when your deck has 0 cards. You lose at the end of the turn in which your deck becomes 0 cards.\n[Activate: Main] [Once Per Turn] Trash 4 cards from the top of your deck. Then, if your deck has 0 cards, set up to 1 of your Characters as active.","set":"Adventure on Kami’s Island","crew":"Straw Hat Pirates","t":"img/tcg-OP15-022.webp","l":"img/tcgl-OP15-022.webp"},{"no":"EB02-033","name":"Klabautermann","rarity":"C","kind":"Character","colors":["Purple"],"cost":1,"power":null,"counter":1000,"attr":"Wisdom","types":"Sprite","effect":"If you have [Merry Go] on your field, this Character gains [Blocker].","set":"Anime 25th Collection","crew":"Straw Hat Pirates","t":"img/tcg-EB02-033.webp","l":"img/tcgl-EB02-033.webp"},{"no":"OP15-090","name":"Perona","rarity":"UC","kind":"Character","colors":["Black"],"cost":1,"power":2000,"counter":2000,"attr":"Special","types":"Thriller Bark Pirates","effect":"If your Character with 7000 base power or less would be removed from the field by your opponent's effect, you may trash 1 card from your hand instead.","set":"Adventure on Kami’s Island","crew":"Thriller Bark","t":"img/tcg-OP15-090.webp","l":"img/tcgl-OP15-090.webp"},{"no":"OP14-005","name":"Killer","rarity":"C","kind":"Character","colors":["Red"],"cost":1,"power":1000,"counter":1000,"attr":"Slash","types":"Supernovas/Kid Pirates","effect":"[Activate: Main] [Once Per Turn] Give up to 1 rested DON!! card to your Leader or 1 of your Characters.","set":"The Azure Sea’s Seven","crew":"The Worst Generation","t":"img/tcg-OP14-005.webp","l":"img/tcgl-OP14-005.webp"},{"no":"OP05-015","name":"Belo Betty","rarity":"R","kind":"Character","colors":["Red"],"cost":1,"power":2000,"counter":1000,"attr":"Special","types":"Revolutionary Army","effect":"[On Play] Look at 5 cards from the top of your deck; reveal up to 1 {Revolutionary Army} type card other than [Belo Betty] and add it to your hand. Then, place the rest at the bottom of your deck in any order.","set":"Awakening of the New Era","crew":"Revolutionary Army","t":"img/tcg-OP05-015.webp","l":"img/tcgl-OP05-015.webp"},{"no":"OP15-067","name":"Shura","rarity":"R","kind":"Character","colors":["Purple"],"cost":1,"power":2000,"counter":1000,"attr":"Slash","types":"Sky Island/Vassals","effect":"If you have 6 or less DON!! cards on your field, this Character gains [Rush].\n(This card can attack on the turn in which it is played.)\n[On Play] DON!! −1: Draw 1 card.","set":"Adventure on Kami’s Island","crew":"Across the Grand Line","t":"img/tcg-OP15-067.webp","l":"img/tcgl-OP15-067.webp"},{"no":"OP15-042","name":"Kyros","rarity":"R","kind":"Character","colors":["Blue"],"cost":3,"power":5000,"counter":null,"attr":"Slash","types":"Dressrosa","effect":"[On Play] You may trash 1 card from your hand: If your Leader is [Rebecca], this Character gains [Rush] during this turn.\n[On K.O.] Add this Character card from your trash to your hand.","set":"Adventure on Kami’s Island","crew":"Dressrosa","t":"img/tcg-OP15-042.webp","l":"img/tcgl-OP15-042.webp"},{"no":"OP14-112","name":"Boa Hancock","rarity":"SR","kind":"Character","colors":["Yellow"],"cost":9,"power":10000,"counter":null,"attr":"Special","types":"The Seven Warlords of the Sea/Kuja Pirates","effect":"[On Play] If your Leader has the {The Seven Warlords of the Sea} type, add up to 1 card from the top of your deck to the top of your Life cards. Then, add up to 1 card from the top of your opponent's Life cards to the owner's hand.","set":"The Azure Sea’s Seven","crew":"The Warlords","t":"img/tcg-OP14-112_p1.webp","l":"img/tcgl-OP14-112_p1.webp"},{"no":"OP04-060","name":"Crocodile","rarity":"SR","kind":"Character","colors":["Purple"],"cost":8,"power":9000,"counter":null,"attr":"Special","types":"The Seven Warlords of the Sea/Baroque Works","effect":"[On Play] DON!! −2 (You may return the specified number of DON!! cards from your field to your DON!! deck.): If your Leader's type includes \"Baroque Works\", add up to 1 card from the top of your deck to the top of your Life cards.\n[On Your Opponent's Attack] [Once Per Turn] DON!! −1: Draw 1 card and trash 1 card from your hand.","set":"Kingdoms of Intrigue","crew":"The Warlords","t":"img/tcg-OP04-060.webp","l":"img/tcgl-OP04-060.webp"},{"no":"OP07-051","name":"Boa Hancock","rarity":"SR","kind":"Character","colors":["Blue"],"cost":6,"power":8000,"counter":null,"attr":"Special","types":"The Seven Warlords of the Sea/Kuja Pirates","effect":"[On Play] Up to 1 of your opponent's Characters other than [Monkey.D.Luffy] cannot attack until the end of your opponent's next turn. Then, place up to 1 Character with a cost of 1 or less at the bottom of the owner's deck.","set":"500 Years in the Future","crew":"The Warlords","t":"img/tcg-OP07-051.webp","l":"img/tcgl-OP07-051.webp"},{"no":"DON!!","name":"DON!! card","rarity":"DON","kind":"DON","colors":[],"cost":null,"power":null,"counter":null,"attr":null,"types":null,"effect":"Your turn: +1000 power.","set":"DON!! card","crew":"DON!!","t":"img/tcg-DON-kyros.webp","l":"img/tcgl-DON-kyros.webp"},{"no":"DON!!","name":"DON!! card","rarity":"DON","kind":"DON","colors":[],"cost":null,"power":null,"counter":null,"attr":null,"types":null,"effect":"Your turn: +1000 power.","set":"DON!! card","crew":"DON!!","t":"img/tcg-DON-meadow.webp","l":"img/tcgl-DON-meadow.webp"},{"no":"DON!!","name":"DON!! card","rarity":"DON","kind":"DON","colors":[],"cost":null,"power":null,"counter":null,"attr":null,"types":null,"effect":"Your turn: +1000 power.","set":"DON!! card","crew":"DON!!","t":"img/tcg-DON-arlong.webp","l":"img/tcgl-DON-arlong.webp"},{"no":"DON!!","name":"DON!! card","rarity":"DON","kind":"DON","colors":[],"cost":null,"power":null,"counter":null,"attr":null,"types":null,"effect":"Your turn: +1000 power.","set":"DON!! card","crew":"DON!!","t":"img/tcg-DON-kagura.webp","l":"img/tcgl-DON-kagura.webp"},{"no":"DON!!","name":"DON!! card","rarity":"DON","kind":"DON","colors":[],"cost":null,"power":null,"counter":null,"attr":null,"types":null,"effect":"Your turn: +1000 power.","set":"DON!! card","crew":"DON!!","t":"img/tcg-DON-flame.webp","l":"img/tcgl-DON-flame.webp"},{"no":"OP09-119","name":"Monkey.D.Luffy","rarity":"SEC","kind":"Character","colors":["Purple"],"cost":9,"power":10000,"counter":null,"attr":"Strike","types":"Straw Hat Crew","effect":"[On Play] You may return 1 or more DON!! cards from your field to your DON!! deck: Draw 1 card and this Character gains [Rush] during this turn.","set":"Emperors in the New World","crew":"Straw Hat Pirates","t":"img/tcg-OP09-119.webp","l":"img/tcgl-OP09-119.webp"},{"no":"OP10-112","name":"Eustass\"Captain\"Kid","rarity":"SR","kind":"Character","colors":["Yellow"],"cost":8,"power":9000,"counter":null,"attr":"Special","types":"Supernovas/Kid Pirates","effect":"[On Play] You may rest this Character: Trash up to 1 card from the top of your opponent's Life cards.\n[End of Your Turn] If your opponent has 2 or less Life cards, draw 1 card and trash 1 card from your hand.","set":"Royal Blood","crew":"The Worst Generation","t":"img/tcg-OP10-112.webp","l":"img/tcgl-OP10-112.webp"},{"no":"OP09-062","name":"Nico Robin","rarity":"L","kind":"Leader","colors":["Purple","Yellow"],"cost":4,"power":5000,"counter":null,"attr":"Strike","types":"Straw Hat Crew","effect":"[Banish] (When this card deals damage, the target card is trashed without activating its Trigger.)\n[When Attacking] You may trash 1 card with a [Trigger] from your hand: Add up to 1 DON!! card from your DON!! deck and rest it.","set":"Emperors in the New World","crew":"Straw Hat Pirates","t":"img/tcg-OP09-062.webp","l":"img/tcgl-OP09-062.webp"},{"no":"OP09-061","name":"Monkey.D.Luffy","rarity":"L","kind":"Leader","colors":["Purple","Black"],"cost":4,"power":5000,"counter":null,"attr":"Strike","types":"The Four Emperors/Straw Hat Crew","effect":"[DON!! x1] All of your Characters gain +1 cost.\n[Your Turn] [Once Per Turn] When 2 or more DON!! cards on your field are returned to your DON!! deck, add up to 1 DON!! card from your DON!! deck and set it as active, and add up to 1 additional DON!! card and rest it.","set":"Emperors in the New World","crew":"Straw Hat Pirates","t":"img/tcg-OP09-061.webp","l":"img/tcgl-OP09-061.webp"},{"no":"EB04-048","name":"Rob Lucci","rarity":"SR","kind":"Character","colors":["Black"],"cost":4,"power":6000,"counter":null,"attr":"Strike","types":"Egghead/CP0","effect":"If your Leader's type includes \"CP\", this Character gains +1000 power and +2 cost for every 5 cards in your trash.\n[On Play] You may trash 1 of your Characters: Draw 1 card.","set":"Adventure on Kami’s Island","crew":"The World Government","t":"img/tcg-EB04-048.webp","l":"img/tcgl-EB04-048.webp"},{"no":"OP09-093","name":"Marshall.D.Teach","rarity":"SR","kind":"Character","colors":["Black"],"cost":10,"power":12000,"counter":null,"attr":"Special","types":"The Four Emperors/Blackbeard Pirates","effect":"[Blocker]\n[Activate: Main] [Once Per Turn] If your Leader has the {Blackbeard Pirates} type and this Character was played on this turn, negate the effect of up to 1 of your opponent's Leader during this turn. Then, negate the effect of up to 1 of your opponent's Characters and that Character cannot attack until the end of your opponent's next turn.","set":"Emperors in the New World","crew":"The Emperors’ crews","t":"img/tcg-OP09-093.webp","l":"img/tcgl-OP09-093.webp"},{"no":"OP09-065","name":"Sanji","rarity":"SR","kind":"Character","colors":["Purple"],"cost":7,"power":7000,"counter":1000,"attr":"Strike","types":"Straw Hat Crew","effect":"[On Play] You may return 1 or more DON!! cards from your field to your DON!! deck: This Character gains [Rush] during this turn. Then, rest up to 1 of your opponent's Characters with a cost of 6 or less.","set":"Emperors in the New World","crew":"Straw Hat Pirates","t":"img/tcg-OP09-065.webp","l":"img/tcgl-OP09-065.webp"},{"no":"ST04-003","name":"Kaido","rarity":"SR","kind":"Character","colors":["Purple"],"cost":9,"power":10000,"counter":null,"attr":"Strike","types":"The Four Emperors/Animal Kingdom Pirates","effect":"[On Play] DON!! −5 (You may return the specified number of DON!! cards from your field to your DON!! deck.): K.O. up to 1 of your opponent's Characters with a cost of 6 or less. This Character gains [Rush] during this turn.\n(This card can attack on the turn in which it is played.)","set":"Animal Kingdom Pirates starter deck","crew":"The Emperors’ crews","t":"img/tcg-ST04-003.webp","l":"img/tcgl-ST04-003.webp"},{"no":"OP17-005","name":"Edward.Newgate","rarity":"SR","kind":"Character","colors":["Red"],"cost":10,"power":12000,"counter":null,"attr":"Special","types":"The Four Emperors/Whitebeard Pirates","effect":"If your opponent has a Character with 10000 power or more, give this card in your hand −4 cost.\n[On Play] Your monocolored Leader's base power becomes 8000 until the end of your opponent's next End Phase.","set":"The World’s Strongest Warriors","crew":"The Emperors’ crews","t":"img/tcg-OP17-005.webp","l":"img/tcgl-OP17-005.webp"},{"no":"OP14-084","name":"Ms. All Sunday","rarity":"SR","kind":"Character","colors":["Black"],"cost":7,"power":8000,"counter":null,"attr":"Strike","types":"Baroque Works","effect":"[On Play] If your Leader's type includes \"Baroque Works\", play up to 1 Character card with a type including \"Baroque Works\" and a cost of 4 or less and up to 1 Character card with a type including \"Baroque Works\" and a cost of 1 from your trash.","set":"The Azure Sea’s Seven","crew":"The Warlords","t":"img/tcg-OP14-084.webp","l":"img/tcgl-OP14-084.webp"},{"no":"EB03-055","name":"Nico Robin","rarity":"SR","kind":"Character","colors":["Yellow"],"cost":7,"power":8000,"counter":null,"attr":"Strike","types":"Straw Hat Crew","effect":"[On Play] You may trash 1 card from the top of your Life cards: If your Leader has the {Straw Hat Crew} type, add up to 2 cards from the top of your deck to the top of your Life cards.\n[Opponent's Turn] [On K.O.] You may deal 1 damage to your opponent.","set":"Heroines Edition","crew":"Straw Hat Pirates","t":"img/tcg-EB03-055.webp","l":"img/tcgl-EB03-055.webp"},{"no":"OP14-119","name":"Dracule Mihawk","rarity":"SEC","kind":"Character","colors":["Green"],"cost":9,"power":10000,"counter":null,"attr":"Slash","types":"The Seven Warlords of the Sea","effect":"[Your Turn] When this Character becomes rested, up to 1 of your opponent's Characters with a cost of 9 or less cannot be rested until the end of your opponent's next End Phase.\n[On Your Opponent's Attack] [Once Per Turn] You may trash 1 card from your hand: Up to 1 of your Leader or Character cards gains +2000 power during this battle.","set":"The Azure Sea’s Seven","crew":"The Warlords","t":"img/tcg-OP14-119.webp","l":"img/tcgl-OP14-119.webp"}],"lab":[{"img":"img/lab-his.webp","name":"Sanji","sub":"Sun · Haki · Black Leg","chip":"Conqueror · 1/1","move":"Hold it and the Haki charges until the screen cracks.","no":"0001"},{"img":"img/lab-g4.webp","name":"Luffy","sub":"Gear 4 · Boundman","chip":"Red Manga","move":"Peel the corner back to find the full-colour original under the red ink.","no":"0137"},{"img":"img/lab-g5.webp","name":"Nika","sub":"The drums of liberation","chip":"Sun God · 0.4%","move":"Pull it. It's rubber, and it has a heartbeat.","no":"—"},{"img":"img/lab-zoro.webp","name":"Zoro","sub":"Three-sword style","chip":"Manga","move":"Draw on it to ink the pencils yourself.","no":"0211"}],"cases":[{"id":"jfk-assassination","no":1,"title":"The JFK *Assassination*","hook":"President John F. Kennedy was shot dead in Dallas in 1963. Two days later, the man accused of killing him was shot dead on live television. America has been arguing ever since.","cat":"conspiracy-theories","verdict":"unproven","level":5,"year":"1963","where":"Dealey Plaza, Dallas, Texas, USA","mins":8,"img":"img/case-jfk-assassination.webp","credit":{"artist":"Victor Hugo King","licence":"Public domain","file":"John_F._Kennedy_motorcade,_Dallas,_Texas,_Nov._22,_1963.jpg"}},{"id":"moon-landing","no":2,"title":"The Moon Landing *Hoax*","hook":"Twelve astronauts, 382 kg of Moon rock and a flag that seems to wave. Did NASA really fake it in a studio?","cat":"conspiracy-theories","verdict":"debunked","level":3,"year":"1969","where":"Sea of Tranquility, the Moon","mins":6,"img":"img/case-moon-landing.webp","credit":{"artist":"Neil Armstrong","licence":"Public domain","file":"Aldrin_Apollo_11_original.jpg"}},{"id":"september-11","no":3,"title":"9/11 *Theories*","hook":"Within a few years of the deadliest terrorist attack in history, a question spread online: what if it wasn't what it seemed? Engineers, investigators and journalists checked every claim.","cat":"conspiracy-theories","verdict":"debunked","level":4,"year":"2001","where":"New York City; Arlington, Virginia; Shanksville, Pennsylvania","mins":7,"img":"img/case-september-11.webp","credit":{"artist":"Denise Gould","licence":"Public domain","file":"Tribute_in_Light_(air_force_2)_tilt_corrected.jpg"}},{"id":"area-51-roswell","no":4,"title":"Area 51 & *Roswell*","hook":"In 1947 the US Army announced it had captured a flying saucer. The next day it said: never mind, it's a weather balloon. Neither statement was the whole truth.","cat":"conspiracy-theories","verdict":"debunked","level":4,"year":"1947","where":"Roswell, New Mexico and Groom Lake, Nevada, USA","mins":7,"img":"img/case-area-51-roswell.webp","credit":{"artist":"Roswell Daily Record.","licence":"Public domain","file":"Roswell_Daily_Record._July_8,_1947._RAAF_Captures_Flying_Saucer_On_Ranch_in_Roswell_Region._Top_of_front_page.jpg"}},{"id":"illuminati","no":5,"title":"The *Illuminati*","hook":"A secret society that secretly runs the world, leaving clues on dollar bills and in music videos. It was real, briefly: for about nine years, in Bavaria, in the 1700s.","cat":"conspiracy-theories","verdict":"debunked","level":3,"year":"1776","where":"Ingolstadt, Bavaria (today's Germany)","mins":6,"img":"img/case-illuminati.webp","credit":{"artist":"","licence":"Public domain","file":"Adam_Weishaupt01.jpg"}},{"id":"flat-earth","no":6,"title":"The Flat *Earth*","hook":"Thousands of people are convinced the planet is a disc ringed by a wall of ice. Some have spent real money to prove it, and accidentally proved the opposite.","cat":"conspiracy-theories","verdict":"debunked","level":2,"year":"1849","where":"The planet Earth (round)","mins":6,"img":"img/case-flat-earth.webp","credit":{"artist":"NASA/Apollo 17 crew; taken by either Harrison Schmitt or Ron Evans","licence":"Public domain","file":"The_Earth_seen_from_Apollo_17.jpg"}},{"id":"chemtrails","no":7,"title":"The Chemtrail *Conspiracy*","hook":"Look up on the right day and the sky is criss-crossed with white trails that spread into haze. Millions of people believe they're being sprayed. The trails have a much simpler story.","cat":"conspiracy-theories","verdict":"debunked","level":2,"year":"1996","where":"The sky above you","mins":5,"img":"img/case-chemtrails.webp","credit":{"artist":"NASA / Eddie Winstead","licence":"Public domain","file":"Douglas_DC-8_producing_contrails_at_a_biofuel_test.jpg"}},{"id":"paul-is-dead","no":8,"title":"Paul Is *Dead*","hook":"In 1969 millions of fans became convinced that Paul McCartney had died in a car crash three years earlier and been secretly replaced by a lookalike. The clues were supposedly hidden in the Beatles' own records.","cat":"conspiracy-theories","verdict":"debunked","level":2,"year":"1969","where":"College campuses and radio stations across the USA","mins":5,"img":"img/case-paul-is-dead.webp","credit":{"artist":"United Press International, photographer unknown","licence":"Public domain","file":"The_Beatles_arrive_at_JFK_Airport.jpg"}},{"id":"princess-diana","no":9,"title":"The Death of *Diana*","hook":"In the early hours of 31 August 1997, a car carrying Diana, Princess of Wales, crashed in a Paris tunnel. The world's most photographed woman was dead at 36, and the questions began almost at once.","cat":"conspiracy-theories","verdict":"debunked","level":3,"year":"1997","where":"Pont de l'Alma tunnel, Paris, France","mins":6,"img":"img/case-princess-diana.webp","credit":{"artist":"Zairon","licence":"CC BY-SA 4.0","file":"Paris_Flamme_de_la_Liberté_1.jpg"}},{"id":"covid-origins","no":10,"title":"COVID-19 *Origins*","hook":"A new coronavirus surfaced in Wuhan, China, in late 2019 and went on to kill millions. Did it come from a wildlife market or a laboratory a few miles away? The argument still isn't over.","cat":"conspiracy-theories","verdict":"unproven","level":5,"year":"2019","where":"Wuhan, Hubei province, China","mins":8,"img":"img/case-covid-origins.webp","credit":{"artist":"National Institute of Allergy and Infectious Diseases (NIAID)","licence":"CC BY 2.0","file":"Novel_Coronavirus_SARS-CoV-2_(49597020648).jpg"}},{"id":"bermuda-triangle","no":11,"title":"The Bermuda *Triangle*","hook":"Five Navy bombers flew out over the Atlantic in 1945 and were never seen again. So was the rescue plane sent to find them.","cat":"strange-places","verdict":"debunked","level":2,"year":"1945","where":"Western North Atlantic, roughly between Miami, Bermuda and Puerto Rico","mins":6,"img":"img/case-bermuda-triangle.webp","credit":{"artist":"U.S. Navy","licence":"Public domain","file":"Three_General_Motors_TBM-3_Avenger_of_VT-6_in_flight,_in_1945.jpg"}},{"id":"amelia-earhart","no":12,"title":"Amelia *Earhart*","hook":"The most famous pilot in the world set out to fly around the globe in 1937. With 7,000 miles to go, she and her navigator vanished over the Pacific.","cat":"unsolved-mysteries","verdict":"unsolved","level":4,"year":"1937","where":"Central Pacific Ocean, near Howland Island","mins":7,"img":"img/case-amelia-earhart.webp","credit":{"artist":"Underwood &amp; Underwood (active 1880 – c. 1950)[1]","licence":"Public domain","file":"Amelia_Earhart_standing_under_nose_of_her_Lockheed_Model_10-E_Electra,_small.jpg"}},{"id":"db-cooper","no":13,"title":"D.B. *Cooper*","hook":"A polite man in a dark suit hijacked a jet, collected $200,000, and jumped out of the back into a stormy night. He was never seen again.","cat":"unsolved-mysteries","verdict":"unsolved","level":4,"year":"1971","where":"Over south-west Washington State, USA","mins":7,"img":"img/case-db-cooper.webp","credit":{"artist":"Federal Bureau of Investigation","licence":"Public domain","file":"D.B._Cooper_FBI_Composite_A.jpg"}},{"id":"jack-the-ripper","no":14,"title":"Jack the *Ripper*","hook":"In the autumn of 1888 a killer stalked the poorest streets of London's East End. He was never caught, and even his famous nickname was probably invented by a journalist.","cat":"unsolved-mysteries","verdict":"unsolved","level":5,"year":"1888","where":"Whitechapel, East End of London","mins":8,"img":"img/case-jack-the-ripper.webp","credit":{"artist":"John Tenniel","licence":"Public domain","file":"John_Tenniel_-_Punch_-_The_Nemesis_of_Neglect.jpg"}},{"id":"zodiac-killer","no":15,"title":"The *Zodiac* Killer","hook":"A killer terrorised California in 1968 and 1969, then taunted police and newspapers with letters and secret codes. One cipher took 51 years to crack. His name is still unknown.","cat":"unsolved-mysteries","verdict":"unsolved","level":5,"year":"1969","where":"San Francisco Bay Area, California, USA","mins":7,"img":"img/case-zodiac-killer.webp","credit":{"artist":"San Francisco Police Department","licence":"Public domain","file":"Zodiac-Killer.jpg"}},{"id":"mh370","no":16,"title":"Flight *MH370*","hook":"A Boeing 777 with 239 people aboard said \"Good night\" to air traffic control and vanished. Satellites showed it kept flying for hours, into one of the most remote oceans on Earth.","cat":"unsolved-mysteries","verdict":"unsolved","level":5,"year":"2014","where":"Southern Indian Ocean (presumed)","mins":7,"img":"img/case-mh370.webp","credit":{"artist":"Aeroprints.com","licence":"CC BY-SA 3.0","file":"9M-MRO_Boeing_777_Malaysia_(7628569246).jpg"}},{"id":"dyatlov-pass","no":17,"title":"The Dyatlov Pass *Incident*","hook":"Nine experienced hikers cut their way out of their own tent and walked into a freezing Siberian night. None came back.","cat":"unsolved-mysteries","verdict":"unsolved","level":4,"year":"1959","where":"Kholat Syakhl, Northern Ural Mountains, USSR (now Russia)","mins":7,"img":"img/case-dyatlov-pass.webp","credit":{"artist":"Олег Чегодаев","licence":"CC BY-SA 4.0","file":"Гора_Отортен._Североуральский_минимализм.jpg"}},{"id":"voynich-manuscript","no":18,"title":"The Voynich *Manuscript*","hook":"A 600-year-old book written in an alphabet nobody can read, full of plants nobody can identify. Some of the world's best codebreakers have failed to crack it.","cat":"unsolved-mysteries","verdict":"unsolved","level":5,"year":"1404–1438","where":"Beinecke Rare Book & Manuscript Library, Yale University","mins":7,"img":"img/case-voynich-manuscript.webp","credit":{"artist":"Unknown authorUnknown author","licence":"Public domain","file":"Voynich_Manuscript_(32).jpg"}},{"id":"roanoke-colony","no":19,"title":"The Lost Colony of *Roanoke*","hook":"In 1587 about 115 English men, women and children settled on an island off North Carolina. Three years later their governor returned to find them gone, with a single word carved into a post.","cat":"unsolved-mysteries","verdict":"unsolved","level":4,"year":"1587","where":"Roanoke Island, North Carolina, USA","mins":7,"img":"img/case-roanoke-colony.webp","credit":{"artist":"Design by William Ludwell Sheppard, Engraving by William James Linton","licence":"No restrictions","file":"William_Ludwell_Sheppard_&_William_James_Linton_-_CROATOAN,_The_Lost_Colony_(John_White).jpg"}},{"id":"loch-ness","no":20,"title":"The Loch Ness *Monster*","hook":"A long neck rising from a dark Scottish loch. Since 1933 thousands of people say they've seen her. The most famous photo turned out to be a toy. So what's really down there?","cat":"strange-places","verdict":"unproven","level":3,"year":"1933","where":"Loch Ness, Scottish Highlands","mins":6,"img":"img/case-loch-ness.webp","credit":{"artist":"Eusebius","licence":"CC BY 3.0","file":"The_Loch_Ness_and_Urquhart_castle.jpg"}},{"id":"mkultra","no":21,"title":"Project *MKUltra*","hook":"For twenty years the CIA tested LSD, hypnosis and worse on people, many of whom never knew. It sounds like the wildest conspiracy theory. It's in the government's own records.","cat":"hidden-history","verdict":"true","level":5,"year":"1953","where":"United States and Canada","mins":7,"img":"img/case-mkultra.webp","credit":{"artist":"Central Intelligence Agency","licence":"Public domain","file":"DeclassifiedMKULTRA.jpg"}},{"id":"operation-northwoods","no":22,"title":"Operation *Northwoods*","hook":"In 1962 America's top generals signed a plan to stage fake terror attacks and blame them on Cuba, to start a war. The President said no. The world found out 35 years later.","cat":"hidden-history","verdict":"true","level":4,"year":"1962","where":"The Pentagon, Washington, D.C.","mins":6,"img":"img/case-operation-northwoods.webp","credit":{"artist":"","licence":"Public domain","file":"NorthwoodsMemorandum.jpg"}},{"id":"tunguska-event","no":23,"title":"The *Tunguska* Event","hook":"One summer morning in 1908, something exploded over Siberia with the force of a huge nuclear bomb and flattened 2,000 square kilometres of forest. It left no crater.","cat":"strange-places","verdict":"true","level":3,"year":"1908","where":"Podkamennaya Tunguska River, Siberia, Russia","mins":6,"img":"img/case-tunguska-event.webp","credit":{"artist":"Leonid Kulik, the expedition to the Tunguska event","licence":"Public domain","file":"Tunguska_Ereignis-1.jpg"}},{"id":"dancing-plague-1518","no":24,"title":"The Dancing Plague of *1518*","hook":"One July day in Strasbourg, a woman started dancing in the street and couldn't stop. Within weeks, dozens or even hundreds of people were dancing with her, for days on end.","cat":"hidden-history","verdict":"true","level":3,"year":"1518","where":"Strasbourg, Alsace (Holy Roman Empire, now France)","mins":5,"img":"img/case-dancing-plague-1518.webp","credit":{"artist":"","licence":"CC BY 4.0","file":"The_dancing_mania,_by_Hondius_Wellcome_M0013485.jpg"}},{"id":"great-emu-war","no":25,"title":"The Great *Emu* War","hook":"In 1932 the Australian Army sent soldiers with machine guns to fight 20,000 emus. The emus did not lose.","cat":"hidden-history","verdict":"true","level":2,"year":"1932","where":"Campion district, Wheatbelt, Western Australia","mins":5,"img":"img/case-great-emu-war.webp","credit":{"artist":"Calistemon","licence":"CC BY-SA 4.0","file":"Emu_running_on_the_beach_at_Monkey_Mia,_July_2020_05.jpg"}}],"plan":"img/plan-r6.webp","sites":{"archive":"img/site-archive.webp","nika":"img/site-nika.webp","story":"img/site-story.webp","behold":"img/site-behold.webp","ilp":"img/site-ilp.webp","betty":"img/site-betty.webp","archive1":"img/site-archive1.webp","watch":"img/site-watch.webp"},"folders":[{"id":"luffy","name":"Monkey D. Luffy","series":"One Piece","line":"Captain","pics":["img/3358de4cd87c.webp","img/524c37252245.webp","img/028304600561.webp","img/044004301210.webp","img/64ba58c6d84a.webp","img/b724ce47fce6.webp","img/5b0d3b096573.webp","img/2676df503484.webp"],"word":"Freedom","lesson":"Luffy taught me to dream without apologizing for it.","bounty":3000000000,"tint":"#d13b30","role":"Captain","dream":"To become King of the Pirates."},{"id":"zoro","name":"Roronoa Zoro","series":"One Piece","line":"Swordsman","pics":["img/240024824081.webp","img/52b351814e8f.webp","img/843600f4d034.webp","img/71c9f3238e1c.webp","img/98f3d1f2d2b2.webp","img/6e714a730cf4.webp","img/bf044f88dfc0.webp","img/377067396e91.webp"],"word":"Discipline","lesson":"Zoro reminded me that progress looks boring before it looks impressive.","bounty":1111000000,"tint":"#2f8a52","role":"Swordsman","dream":"To become the world's greatest swordsman."},{"id":"nami","name":"Nami","series":"One Piece","line":"Navigator of the Straw Hats","pics":["img/3c8f5ecb9649.webp","img/c95409fbc40a.webp","img/a7083d8c8ec2.webp","img/0c9cbe1c6610.webp","img/0030000808f4.webp","img/c32fcf1698c6.webp","img/61de948cd5cd.webp","img/b0ab12996609.webp"],"word":"Ask for help","lesson":"Carrying everything alone isn't strength. The bravest thing she ever said was two words: help me.","bounty":366000000,"tint":"#ee8a3c","role":"Navigator","dream":"To draw a map of the whole world."},{"id":"usopp","name":"Usopp","series":"One Piece","line":"The goat. The sniper.","pics":["img/40e80b7499ba.webp","img/c79ce38cd30c.webp","img/01a027d009e8.webp","img/5ac4bd34713c.webp","img/000000800400.webp","img/e8e492491300.webp","img/9a5c9c0eb626.webp","img/3facc544b861.webp"],"word":"Courage","lesson":"Brave doesn't mean unafraid. It means your legs are shaking and you stand there anyway.","bounty":500000000,"tint":"#c79a4b","role":"Sniper","dream":"To become a brave warrior of the sea."},{"id":"sanji","name":"Sanji","series":"One Piece","line":"Cook","pics":["img/00e2075c261f.webp","img/0fc09de086b0.webp","img/6584a3016307.webp","img/d66e4eec5a26.webp","img/b03ba935d3f2.webp","img/3dffc0297956.webp","img/783e7a7dc873.webp","img/47b69db1012b.webp"],"word":"Respect the craft","lesson":"Work hard, feed people properly, and never treat food like it has no value.","bounty":1032000000,"tint":"#e2bd45","role":"Cook","dream":"To find the All Blue."},{"id":"chopper","name":"Tony Tony Chopper","series":"One Piece","line":"Doctor. Reindeer. Monster.","pics":["img/736f7334ba76.webp","img/383451319eac.webp","img/992336d3b693.webp","img/f2cee2c2f2d2.webp","img/0e279d9533db.webp","img/122d5337d083.webp","img/c9f289fb8b0c.webp","img/9e8c97428d93.webp"],"word":"Belonging","lesson":"Being different isn't something to apologise for. The right people will call you a friend, horns and all.","bounty":1000,"tint":"#ea86ad","role":"Doctor","dream":"To become a doctor who can cure any disease."},{"id":"robin","name":"Nico Robin","series":"One Piece","line":"Archaeologist","pics":["img/373131619907.webp","img/0079bce0c4c3.webp","img/c0ffc05f0b0d.webp","img/0000401070c4.webp","img/018958f3106c.webp","img/1c6e39662376.webp","img/398389ca185f.webp","img/81f003e83e78.webp"],"word":"Hope","lesson":"Robin reminded me that a terrible chapter does not mean the story should end there.","bounty":930000000,"tint":"#8566d4","role":"Archaeologist","dream":"To read the true history of the world."},{"id":"franky","name":"Franky","series":"One Piece","line":"Shipwright. SUPER.","pics":["img/8c474e239258.webp","img/39cd880aa79e.webp"],"word":"Build","lesson":"Own your past, then build something worth sailing on.","bounty":394000000,"tint":"#45c2e6","role":"Shipwright","dream":"To build a dream ship and sail it to the end of the world."},{"id":"brook","name":"Brook","series":"One Piece","line":"Fifty years, one promise","pics":["img/3024e75b52de.webp","img/450ff2edeb36.webp","img/0312fa699b75.webp","img/f844020d144b.webp"],"word":"Keep your promise","lesson":"Fifty years alone in the fog, and he kept laughing. Some promises are worth outliving everything for.","bounty":383000000,"tint":"#9d93e0","role":"Musician","dream":"To see Laboon again."},{"id":"jinbe","name":"Jinbe","series":"One Piece","line":"Helmsman. Knight of the Sea.","pics":["img/d87fb22e5091.webp","img/f5450bcd4e30.webp"],"word":"Steady","lesson":"When everything falls apart, remember who is still counting on you.","bounty":1100000000,"tint":"#3f93a6","role":"Helmsman","dream":"A world where fish-men and humans stand as equals."},{"id":"law","name":"Law","series":"One Piece","line":"The Surgeon of Death","pics":["img/33991e8b1884.webp","img/722531af94e1.webp","img/399b4337128c.webp"]},{"id":"yamato","name":"Yamato","series":"One Piece","line":"Oden, by choice","pics":["img/9312df8d4e49.webp","img/327b7b0bdb26.webp","img/cb58e2cca586.webp","img/d8cd77264e92.webp","img/ebab7aebd261.webp","img/a996df177c27.webp","img/060016002420.webp","img/7453474fbf1e.webp"]},{"id":"hancock","name":"Hancock","series":"One Piece","line":"The Pirate Empress","pics":["img/8c1680f76317.webp","img/e3f3a0fb5179.webp","img/603cc438f0c9.webp","img/c64b999193a1.webp","img/78e563914ecb.webp","img/31864cccd1db.webp"]},{"id":"garp","name":"Garp","series":"One Piece","line":"The Hero of the Marines","pics":["img/dcdf8e469aac.webp","img/428fa44422d1.webp","img/c4953b633efd.webp"]},{"id":"kuma","name":"Kuma","series":"One Piece","line":"The tyrant who carried everyone","pics":["img/150990e0419f.webp","img/dd7180a8f21f.webp","img/395840e22c00.webp"]},{"id":"vivi","name":"Vivi","series":"One Piece","line":"A princess, not a pirate","pics":["img/0859482ecfde.webp"]},{"id":"strawhats","name":"The Straw Hat Pirates","series":"One Piece","line":"The whole crew","pics":["img/fcf118f387b7.webp","img/253a6236634a.webp","img/00006f2d3a64.webp","img/70d1a72426a4.webp","img/280c110118cc.webp","img/85b1746c5c6d.webp","img/04a02de21c43.webp","img/0ce359254961.webp"]},{"id":"ayanokoji","name":"Ayanokoji","series":"Classroom of the Elite","line":"","pics":["img/f0e0f1f0e2f4.webp","img/013880304130.webp","img/7c99749975db.webp","img/26ee64cc2024.webp","img/9dad9dad1dad.webp","img/27e8456a4d79.webp","img/0874103a203c.webp","img/17c95b48b949.webp"]},{"id":"guts","name":"Guts","series":"Berserk","line":"Endurance","pics":["img/00cf03830605.webp","img/939700f71d26.webp","img/135919e36265.webp","img/5b20ed44bf02.webp","img/99ee9cba9594.webp","img/92121720b640.webp","img/000000000040.webp","img/b0a8c17eca5e.webp"],"word":"Endurance","lesson":"Guts showed me that continuing is sometimes the victory.","tint":"#4c1919"},{"id":"subaru","name":"Subaru Natsuki","series":"Re:Zero","line":"Try Again","pics":["img/ef90cf58959c.webp","img/ccc3d961fb2e.webp","img/a6c03e621a24.webp","img/8ec56c1818d0.webp","img/91bd263604dd.webp","img/758fbdbf045c.webp","img/f49b8eb016e6.webp","img/0bceaabed290.webp"],"word":"Try Again","lesson":"Subaru showed me that emotional pain does not automatically make someone weak.","tint":"#4c4a39"},{"id":"violet","name":"Violet Evergarden","series":"Violet Evergarden","line":"Learn to understand people","pics":["img/38583bab47bc.webp","img/e76799f07af1.webp","img/1a680f44b1a3.webp","img/2055c4135ff6.webp","img/9eed8a06c17c.webp","img/8b6ddd0398b6.webp","img/0b608cf90bac.webp","img/7711581c8556.webp"],"word":"Learn to understand people","lesson":"Violet Evergarden motivated me to be a better person.","tint":"#1c2f4d"},{"id":"rudeus","name":"Rudeus","series":"Mushoku Tensei","line":"Face your life","pics":["img/06115a0ab910.webp","img/f28b6d46e8c0.webp"],"word":"Face your life","lesson":"Rudeus reminded me that real life does not come with a reincarnation button.","tint":"#13464c"},{"id":"all-might","name":"All Might","series":"My Hero Academia","line":"Become a symbol","pics":["img/826030683534.webp","img/2d5e2d1f4dbb.webp","img/cd689ec097c0.webp","img/66601ea74ecb.webp"],"word":"Become a symbol","tint":"#4c3013"},{"id":"jinwoo","name":"Sung Jinwoo","series":"Solo Leveling","line":"","pics":["img/43dcb6cdc2cc.webp"]},{"id":"rem","name":"Rem","series":"Re:Zero","line":"","pics":["img/8b3896b6aeb4.webp","img/9f9fc1086863.webp","img/9fabdd7e061f.webp","img/46ae5ce4d460.webp","img/02f817f3efc4.webp","img/93c9d366e901.webp","img/164303dbcc59.webp","img/99a896d9ca0d.webp"]},{"id":"beatrice","name":"Beatrice","series":"Re:Zero","line":"","pics":["img/88e7f83955ef.webp","img/76d8067904e5.webp","img/4c004927212b.webp","img/820be7757325.webp","img/016ab68efbae.webp","img/f02fa4298b78.webp","img/2f7a89fb648f.webp","img/3fc28d451f1b.webp"]},{"id":"reze","name":"Reze","series":"Chainsaw Man","line":"","pics":["img/7133339971e8.webp","img/2138221c220e.webp","img/0ac095e200f2.webp","img/c50ae60c7014.webp","img/3074d23cc498.webp","img/3952df26c932.webp","img/10e144f0051a.webp","img/8274d470f037.webp"]}],"crew":[{"id":"luffy","name":"Monkey D. Luffy","short":"Luffy","role":"Captain","bounty":3000000000,"tint":"#d13b30","word":"Freedom","img":"img/524c37252245.webp","dream":"To become King of the Pirates."},{"id":"zoro","name":"Roronoa Zoro","short":"Zoro","role":"Swordsman","bounty":1111000000,"tint":"#2f8a52","word":"Discipline","img":"img/52b351814e8f.webp","dream":"To become the world's greatest swordsman."},{"id":"nami","name":"Nami","short":"Nami","role":"Navigator","bounty":366000000,"tint":"#ee8a3c","word":"Ask for help","img":"img/c95409fbc40a.webp","dream":"To draw a map of the whole world."},{"id":"usopp","name":"Usopp","short":"Usopp","role":"Sniper","bounty":500000000,"tint":"#c79a4b","word":"Courage","img":"img/c79ce38cd30c.webp","dream":"To become a brave warrior of the sea."},{"id":"sanji","name":"Vinsmoke Sanji","short":"Sanji","role":"Cook","bounty":1032000000,"tint":"#e2bd45","word":"Respect the craft","img":"img/00e2075c261f.webp","dream":"To find the All Blue."},{"id":"chopper","name":"Tony Tony Chopper","short":"Chopper","role":"Doctor","bounty":1000,"tint":"#ea86ad","word":"Belonging","img":"img/383451319eac.webp","dream":"To become a doctor who can cure any disease."},{"id":"robin","name":"Nico Robin","short":"Robin","role":"Archaeologist","bounty":930000000,"tint":"#8566d4","word":"Hope","img":"img/0079bce0c4c3.webp","dream":"To read the true history of the world."},{"id":"franky","name":"Franky","short":"Franky","role":"Shipwright","bounty":394000000,"tint":"#45c2e6","word":"Build","img":"img/8c474e239258.webp","dream":"To build a dream ship and sail it to the end of the world."},{"id":"brook","name":"Brook","short":"Brook","role":"Musician","bounty":383000000,"tint":"#9d93e0","word":"Keep your promise","img":"img/3024e75b52de.webp","dream":"To see Laboon again."},{"id":"jinbe","name":"Jinbe","short":"Jinbe","role":"Helmsman","bounty":1100000000,"tint":"#3f93a6","word":"Steady","img":"img/d87fb22e5091.webp","dream":"A world where fish-men and humans stand as equals."}],"binder":[],"stats":{"updated":"2026-10-14","animeDone":27,"animeNow":5,"mangaReading":19,"mangaDone":10,"tv":74,"cards":86,"watching":[{"t":"Bleach","p":"Ep 25"},{"t":"Witch Hat Atelier","p":"Ep 6"},{"t":"Hunter x Hunter","p":"Ep 61"},{"t":"My Hero Academia","p":"Ep 92"},{"t":"Black Torch","p":"Ep 3"}],"reading":["One Piece","Berserk","Smoking Behind the Supermarket with You","The Fragrant Flower Blooms with Dignity","Your Lie in April","Goodnight Punpun","After the Rain","Omniscient Reader"],"top":["One Piece","Re:Zero","Classroom of the Elite","Violet Evergarden","Attack on Titan","Death Note","The Fragrant Flower Blooms with Dignity","Black Clover","Berserk: Golden Age","Smoking Behind the Supermarket with You"]},"me":{"face":"img/me-face.webp","full":"img/me-full.webp"},"wall":["img/c64b999193a1.webp","img/399b4337128c.webp","img/395840e22c00.webp","img/78e563914ecb.webp","img/c32fcf1698c6.webp","img/0e279d9533db.webp","img/0000401070c4.webp","img/524c37252245.webp","img/3358de4cd87c.webp","img/0859482ecfde.webp","img/d87fb22e5091.webp","img/00e2075c261f.webp","img/783e7a7dc873.webp","img/373131619907.webp","img/150990e0419f.webp","img/0079bce0c4c3.webp","img/992336d3b693.webp","img/603cc438f0c9.webp","img/0fc09de086b0.webp","img/bf044f88dfc0.webp","img/843600f4d034.webp","img/0ce359254961.webp","img/3c8f5ecb9649.webp","img/f844020d144b.webp","img/a7083d8c8ec2.webp","img/028304600561.webp","img/450ff2edeb36.webp","img/40e80b7499ba.webp","img/61de948cd5cd.webp","img/722531af94e1.webp","img/c79ce38cd30c.webp","img/ebab7aebd261.webp","img/39cd880aa79e.webp","img/9e8c97428d93.webp","img/122d5337d083.webp","img/e8e492491300.webp"],"finale":"Ten dreams. One ship. Still sailing.","total":8816001000}</script>
+<script>
+(() => {
+"use strict";
+const D = JSON.parse(document.getElementById("data").textContent);
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const md = s => esc(s).replace(/\*([^*]+)\*/g, "<em>$1</em>");
+const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const GH = "https://gomayoha.github.io/", REPO = "https://github.com/gomayoha/", ART = "https://claude.ai/artifact/", DRIVE = "https://drive.google.com/drive/folders/";
+const fmtB = n => "฿" + Math.round(n).toLocaleString("en-US");
+
+/* ---------------- islands ---------------- */
+const ISLES = [
+ {id:"workshop", name:"The Workshop", short:"Workshop", tag:"Idea L Pack: floor plan, reports, trackers and guides", acc:"#8fc3a6", b:309},
+ {id:"grandline", name:"The Grand Line", short:"Grand Line", tag:"One Piece, your characters, the crew and the watch log", acc:"#e5483b", b:0},
+ {id:"boards", name:"The Boards", short:"Boards", tag:"Your five Pinterest boards, one tap away", acc:"#ff5a5f", b:51},
+ {id:"vault", name:"The Card Vault", short:"Card Vault", tag:"Every card you own, and four that exist nowhere else", acc:"#f3c969", b:103},
+ {id:"rabbithole", name:"The Rabbit Hole", short:"Rabbit Hole", tag:"25 case files. Some lies, some unsolved, some true", acc:"#d1302a", b:154},
+ {id:"sanctuary", name:"The Sanctuary", short:"Sanctuary", tag:"Behold, the Scarlet Thread and Shehansa's A Levels", acc:"#f0b76a", b:206},
+ {id:"log", name:"The Captain's Log", short:"Captain's Log", tag:"You, your bounty, goals and links", acc:"#6fb3e0", b:257},
+];
+const ISLE = Object.fromEntries(ISLES.map(i => [i.id, i]));
+const DIAL = {boards:"Pinterest", workshop:"Floor plan, reports", grandline:"One Piece", vault:"86 cards", rabbithole:"25 case files", sanctuary:"Behold, Nangi", log:"Bounty, goals"};
+
+/* ---------------- every place the deck can send you ---------------- */
+const WORK = [
+ {t:"Building 05 · Layout R6", d:"The final site layout. The 13-step material route animated on the plan, the eight machines and all 21 sheets.", u:"floor-plan/", pic:() => D.plan, type:"plan", wide:true, isNew:"Latest · 26 Oct"},
+ {t:"Production Monthly Review", d:"Monthly KPIs, machines, quality, OTD, Kaizen, ink and labour.", u:GH+"ILP-Production-monthly-report/", repo:"ILP-Production-monthly-report", img:"ilp", type:"logo"},
+ {t:"Carton Tracking", d:"QR labels, handoff slips, warehouse transfers and packing lists.", u:GH+"ILP-Carton-Tracking/", repo:"ILP-Carton-Tracking", tone:"#14261c", word:"QR · cartons"},
+ {t:"Employee Portal", d:"Team directory, news, notifications, documents and the photo gallery.", u:GH+"ilp-internal-portal/", repo:"ilp-internal-portal", img:"ilp", type:"logo"},
+ {t:"PUR WH Label Generator", d:"Carton QR labels for the PUR warehouse.", u:GH+"ILP-PUR-WAREHOUSE-TRACKER/", repo:"ILP-PUR-WAREHOUSE-TRACKER", tone:"#1d1a12", word:"PUR WH"},
+];
+const DOCS = [
+ {t:"PD Playbook", d:"Production Department playbook", u:ART+"Y16MTiMoDVn39kSKkRFk1f"},
+ {t:"PD Handover Guide & Automation Roadmap", d:"Handover steps and what to automate next", u:ART+"C8quG1uaeut4u4ZZ3krbqm"},
+ {t:"Production Planning Guide", d:"From job trigger to delivery", u:ART+"U7DGdWqYwgiGkLpRYFR4yj"},
+ {t:"Booth 78 Design Brief", d:"Pro Pack Hanoi 2026", u:ART+"XyG5Mj37zqPWpDvyCagMoS"},
+ {t:"Pro Pack Hanoi 2026 Exhibitor Rules", d:"Booth 78 rules summary", u:ART+"5viZr5YmyZUso4PDaBCoiT"},
+ {t:"Work Portfolio", d:"Ideal Pack work portfolio", u:ART+"5WbfqBwuz2zmDcwE6wvfri"},
+];
+const CC = "https://claude.ai/code/";
+const CHATS = [
+ {t:"Electrical connection diagram review", d:"27 Oct · questions for the contractor", u:CC+"session_01RUNuGVStZYfb1seyGQPsi5"},
+ {t:"CTP room design", d:"26 Oct · designer table and CTP entry", u:CC+"session_01NLqqUudMhydHRWjVU3qDCD"},
+ {t:"Ideal Pack work portfolio", d:"26 Oct · CV and portfolio website", u:CC+"session_016WZLzk9zxdpRfT5yAxK2pN"},
+ {t:"Carton QR · warehouse questions", d:"18 Oct · the label forms from Ms Ly", u:CC+"session_013hJXnpgGRps1cP2n59nhBH"},
+ {t:"Guest entrance apron", d:"12 Oct · walking path, bikes, waste, compressor", u:CC+"session_01NBhbEYodSm9LgCFVrFYvuG"},
+ {t:"Factory layout measurements", d:"6 Oct · the R1, R2 and R3 routes", u:CC+"session_019z43GbZhoPLD4XErdTSzcn"},
+ {t:"Ideal Pack factory layout design", d:"2 Oct · offices and seating plan", u:CC+"session_016eqWVY8KCqy4LpN8scdR2v"},
+];
+const WORK_DRIVE = [
+ {t:"ILP NEW FLOOR PLAN", d:"Every layout revision, R1 to R6", u:DRIVE+"1fp_eKDMpQDMD-CAguv0BhQmcPN2ykRQf"},
+ {t:"IDEAL PACK", d:"Work files", u:DRIVE+"1YPToRttRKa79DKj3Wdr5ahoYzl09eGRL"},
+ {t:"ILP NEW WEBSITE", d:"Company website project", u:DRIVE+"1_wkRZmQRa0k_1uKsqb4X24eofHnsf6TC"},
+];
+const WORK_OLD = [{t:"Carton QR Tracker (prototype)", d:"The first version of Carton Tracking", u:GH+"warehouse-carton-tracker/"}];
+const GL = [
+ {t:"The Grand Archive", d:"Every character, crew, moment, panel and card. From “anime is for losers” to the stories you carry.", u:GH+"grand-archive-voyage/", repo:"grand-archive-voyage", img:"archive", wide:true},
+ {t:"The Story of One Piece", d:"The whole saga, chapter by chapter.", u:GH+"grand-archive-voyage/story.html", repo:"grand-archive-voyage", img:"story"},
+ {t:"Grand Line Trivia", d:"Test what you know about the voyage.", u:GH+"grand-archive-voyage/trivia.html", repo:"grand-archive-voyage", tone:"#2a1410", word:"Trivia", half:true},
+ {t:"My Watch Wall", d:"TV, anime and manga, all on one wall.", u:GH+"My-watch-wall/", repo:"My-watch-wall", img:"watch", half:true},
+];
+const GL_DRIVE = [
+ {t:"One Piece", d:"Your One Piece folder", u:DRIVE+"1mkjheQJOo_XDnWEItZesZv4qnmiNIN53"},
+ {t:"Films", d:"Your films folder", u:DRIVE+"1zZ0HR5q8xdycwovh_Csn9LO_cfgUeYqD"},
+ {t:"Other", d:"Everything else", u:DRIVE+"1ZxBgyIUzWDuoeeUuYuSGMa1S8e19sYn9"},
+];
+const GL_OLD = [{t:"The Grand Archive, first edition", d:"The original single page with the video moments", u:GH+"my-grand-archive/"}];
+const FAITH = [
+ {t:"Behold", d:"The life of Jesus Christ through every person He met, the Apostles, Mother Mary and the Saints. English and Sinhala.", u:GH+"Behold/", repo:"Behold", img:"behold", type:"logo", wide:true},
+ {t:"The Scarlet Thread", d:"The whole Bible, Genesis to Revelation, as one scrolling story.", u:GH+"Behold/scarlet-thread/", repo:"Behold", tone:"#2a0b0b", word:"Genesis → Revelation"},
+];
+const NANGI = [
+ {t:"Nangi Learning", d:"Psychology, Business and Law, with Betty, the hourglass and the treasure room.", u:GH+"shehansa-study/", repo:"shehansa-study", img:"betty", half:true},
+ {t:"Shehansa's A Levels", d:"Her study plan, kept on Claude.", u:ART+"RCPKdmoAyvr71ppQkeveRJ", tone:"#1b1626", word:"Study plan", half:true},
+];
+const ME = [
+ {t:"Yohan De Silva", d:"Your CV website", u:ART+"2sefPx5YxnPj2c8fMZFsQP", k:"claude"},
+ {t:"GitHub · gomayoha", d:"All 11 repositories", u:"https://github.com/gomayoha", k:"gh"},
+];
+const TOOLS = [
+ {t:"Claude", u:"https://claude.ai/new", c:"#c96442", l:"C"}, {t:"Chats", u:"https://claude.ai/recents", c:"#8a4a32", l:"…"},
+ {t:"Claude Code", u:"https://claude.ai/code", c:"#3a2a22", l:">_"}, {t:"Artifacts", u:"https://claude.ai/code/artifacts", c:"#5b3a2c", l:"▦"},
+ {t:"Gmail", u:"https://mail.google.com/", c:"#c5221f", l:"M"}, {t:"Calendar", u:"https://calendar.google.com/", c:"#1a73e8", l:"31"},
+ {t:"Drive", u:"https://drive.google.com/", c:"#188038", l:"▲"}, {t:"Sheets", u:"https://sheets.google.com/", c:"#0f9d58", l:"▤"},
+ {t:"Canva", u:"https://www.canva.com/", c:"#7d2ae8", l:"Ca"}, {t:"YouTube Studio", u:"https://studio.youtube.com/", c:"#e62117", l:"▶"},
+ {t:"CapCut", u:"https://www.capcut.com/", c:"#111", l:"Cc"}, {t:"Pinterest", u:"https://www.pinterest.com/", c:"#e60023", l:"P"},
+ {t:"GitHub", u:"https://github.com/gomayoha", c:"#24292f", l:"Gh"}, {t:"Translate VI→EN", u:"https://translate.google.com/?sl=vi&tl=en", c:"#4285f4", l:"Vi"},
+];
+const DEFAULT_GOALS = ["Raise the quality of the production reports", "Build presentations faster", "Practise Vietnamese every day",
+ "Use AI better at work, study and content", "Style, grooming and confidence"].map(t => ({t, done:false}));
+
+const IC = {
+ claude:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg>',
+ chat:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg>',
+ drive:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+ gh:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.4-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.4 1.1 3 .8.1-.6.3-1.1.6-1.3-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.8 1a9.6 9.6 0 0 1 5 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9V21c0 .3.2.6.7.5A10 10 0 0 0 12 2z"/></svg>',
+ link:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>',
+};
+const hostOf = u => { try { const h = new URL(u).hostname; return h.endsWith("github.io") ? "github.io" : h.replace(/^www\./, ""); } catch { return ""; } };
+
+/* ---------------- render helpers ---------------- */
+function siteCard(s) {
+ const src = s.pic ? s.pic() : (s.img && D.sites[s.img]);
+ let pic;
+ if (src && s.type === "logo") pic = `<div class="pic logo"><img src="${src}" alt="" loading="lazy" decoding="async"></div>`;
+ else if (src && s.type === "plan") pic = `<div class="pic plan"><img src="${src}" alt="" loading="lazy" decoding="async">${s.isNew ? `<span class="badge-new">${esc(s.isNew)}</span>` : ""}</div>`;
+ else if (src) pic = `<div class="pic"><img src="${src}" alt="" loading="lazy" decoding="async"></div>`;
+ else pic = `<div class="pic type" style="--tone:${s.tone || "#151517"}"><span>${esc(s.word || s.t)}</span></div>`;
+ const code = s.repo ? `<a class="code" href="${REPO + s.repo}" target="_blank" rel="noopener">Code</a>` : "";
+ const ext = /^https?:/.test(s.u);
+ return `<article class="site${s.wide ? " wide" : s.half ? " half" : ""}">${pic}<div class="body"><h3><a class="stretch" href="${s.u}"${ext ? ' target="_blank" rel="noopener"' : ""}>${esc(s.t)}</a></h3><p>${esc(s.d)}</p><div class="meta"><span class="host">${ext ? hostOf(s.u) : "In the app"}</span>${code}<span class="go" aria-hidden="true">↗</span></div></div></article>`;
+}
+function rowItem(r, kind) {
+ const k = r.k || kind || "link";
+ return `<div class="row"><span class="ic ${k}">${IC[k] || IC.link}</span><div class="row-x"><a class="row-t stretch" href="${esc(r.u)}" target="_blank" rel="noopener">${esc(r.t)}</a><div class="row-d">${esc(r.d || hostOf(r.u))}</div></div><span class="arr" aria-hidden="true">↗</span></div>`;
+}
+const fill = (sel, html) => { const el = $(sel); if (el) el.innerHTML = html; };
+fill("#work-sites", WORK.map(siteCard).join(""));
+fill("#work-docs", DOCS.map(r => rowItem(r, "claude")).join(""));
+fill("#work-chats", CHATS.map(r => rowItem(r, "chat")).join(""));
+fill("#work-drive", WORK_DRIVE.map(r => rowItem(r, "drive")).join(""));
+fill("#work-old", WORK_OLD.map(r => rowItem(r)).join(""));
+fill("#gl-sites", GL.map(siteCard).join(""));
+fill("#gl-drive", GL_DRIVE.map(r => rowItem(r, "drive")).join(""));
+fill("#gl-old", GL_OLD.map(r => rowItem(r)).join(""));
+fill("#faith-sites", FAITH.map(siteCard).join(""));
+fill("#nangi-sites", NANGI.map(siteCard).join(""));
+fill("#me-links", ME.map(r => rowItem(r)).join(""));
+fill("#toolbox", TOOLS.map(t => `<a class="tool" href="${t.u}" target="_blank" rel="noopener"><span class="ti" style="--c:${t.c}" aria-hidden="true">${esc(t.l)}</span>${esc(t.t)}</a>`).join(""));
+fill("#topnav", ISLES.map(i => `<a href="#${i.id}" data-nav="${i.id}">${esc(i.short)}</a>`).join(""));
+$("#cv-plan").src = D.plan || "";
+const strawhats = D.folders.find(f => f.id === "strawhats");
+const luffyF = D.folders.find(f => f.id === "luffy");
+$("#cv-gl").src = (luffyF && luffyF.pics[0]) || D.sites.archive1 || "";
+$("#cv-gl").style.objectPosition = "60% 30%";
+$("#cv-cross").src = D.sites.behold || "";
+$("#wanted-img").src = D.me.face || "";
+$("#mosaic").innerHTML = D.boards.flatMap(b => b.pics).map(x => `<img src="${x}" alt="" loading="lazy" decoding="async">`).join("");
+const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+if (isIOS && !standalone && !window.claude) $("#install").hidden = false;
+$("#me-img").src = D.me.full || D.me.face || "";
+
+/* next-island footers */
+$$("[data-next]").forEach(el => {
+ const v = el.closest("[data-view]").dataset.view, k = ISLES.findIndex(i => i.id === v), n = ISLES[(k + 1) % ISLES.length];
+ el.innerHTML = `<p>Next island</p><a href="#${n.id}" style="--acc:${n.acc}">${esc(n.name.replace(/^The /, ""))} <em>→</em></a>`;
+});
+
+/* ---------------- opening wall ---------------- */
+const wall = $("#wall");
+const cols = innerWidth < 600 ? 4 : innerWidth < 1100 ? 6 : 8;
+wall.style.setProperty("--cols", cols);
+const picOwner = {};
+D.folders.forEach(f => f.pics.forEach(p => { if (!picOwner[p]) picOwner[p] = f; }));
+const pool = D.wall.concat(D.folders.filter(f => f.series === "One Piece").flatMap(f => f.pics)).filter((p, i, a) => a.indexOf(p) === i);
+let nextPic = 0;
+const take = () => pool[(nextPic++) % pool.length];
+wall.innerHTML = Array.from({length: cols * 6}, () => `<div class="tile"><img src="${take()}" alt="" decoding="async"></div>`).join("");
+const tiles = [...wall.children];
+let lit = null;
+function lightOne() {
+ if ($("#v-home").classList.contains("on") === false) return;
+ if (lit) lit.classList.remove("lit");
+ lit = tiles[(1 + Math.floor(Math.random() * 3)) * cols + Math.floor(Math.random() * cols)];
+ if (!lit) return;
+ lit.classList.add("lit");
+ const f = picOwner[lit.firstChild.getAttribute("src")];
+ $("#lit-cap").innerHTML = f ? `<b>${esc(f.name)}</b> · ${esc(f.series)}` : "";
+}
+function swapOne() {
+ if (!$("#v-home").classList.contains("on")) return;
+ const t = tiles[Math.floor(Math.random() * tiles.length)]; if (t === lit) return;
+ const img = t.firstChild, src = take();
+ img.style.opacity = 0;
+ setTimeout(() => { img.src = src; img.onload = () => { img.style.opacity = 1; }; }, 900);
+}
+
+/* clock, greeting, rotor */
+const fmt = (tz, o) => new Intl.DateTimeFormat("en-GB", Object.assign({timeZone: tz}, o));
+const hanoiHour = () => +fmt("Asia/Ho_Chi_Minh", {hour:"numeric", hourCycle:"h23"}).format(new Date());
+const hanoiDay = () => fmt("Asia/Ho_Chi_Minh", {weekday:"short"}).format(new Date());
+function tick() {
+ const now = new Date();
+ $("#t-hn").textContent = fmt("Asia/Ho_Chi_Minh", {hour:"2-digit", minute:"2-digit"}).format(now);
+ $("#t-cmb").textContent = fmt("Asia/Colombo", {hour:"2-digit", minute:"2-digit"}).format(now);
+ $("#t-date").textContent = fmt("Asia/Ho_Chi_Minh", {weekday:"long", day:"numeric", month:"long"}).format(now);
+ const h = hanoiHour();
+ const g = h < 5 ? "Still up" : h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : h < 22 ? "Good evening" : "Good night";
+ $("#hello").innerHTML = `${g}, <em>Yohan.</em>`;
+}
+const LINES = [{q:"Dream loudly. Protect your people. Keep moving.", w:"Luffy · Freedom"}];
+D.folders.forEach(f => { if (f.lesson) LINES.push({q:f.lesson, w:`${f.name}${f.word ? " · " + f.word : ""}`}); });
+D.crew.forEach(c => LINES.push({q:c.dream, w:`${c.short} · ${c.role}`}));
+let li = 0;
+function rotate() {
+ if (!$("#v-home").classList.contains("on")) return;
+ li = (li + 1) % LINES.length; const r = $("#rotor"); r.style.opacity = 0;
+ setTimeout(() => { r.innerHTML = `${esc(LINES[li].q)}<small>${esc(LINES[li].w)}</small>`; r.style.opacity = 1; }, 600);
+}
+
+/* ---------------- the Log Pose: where the needle points right now ---------------- */
+const DAY = 864e5;
+const daysTo = iso => Math.ceil((new Date(iso) - Date.now()) / DAY);
+function pointed() {
+ const h = hanoiHour(), d = hanoiDay(), exam = daysTo("2027-05-03T09:00:00+05:30");
+ if (d === "Sun" && h >= 6 && h < 13) return ["sanctuary", "It's Sunday morning."];
+ if (d !== "Sun" && h >= 7 && h < 18) return ["workshop", `It's ${d === "Sat" ? "Saturday" : "a work day"}, ${fmt("Asia/Ho_Chi_Minh", {hour:"2-digit", minute:"2-digit"}).format(new Date())} in Hà Nội.`];
+ if (exam > 0 && exam <= 45 && h >= 18 && h < 21) return ["sanctuary", `Shehansa's exams are ${exam} days away.`];
+ if (h >= 23 || h < 5) return ["rabbithole", "It's late. Perfect hour for a rabbit hole."];
+ if (h >= 18) return ["grandline", "Work's done for the day."];
+ return ["log", "A quiet hour for your goals."];
+}
+function setNeedle(id) {
+ const b = id && ISLE[id] ? ISLE[id].b : 0;
+ ["#mini-ndl", "#tab-ndl"].forEach(s => { const n = $(s); if (n) n.style.transform = `rotate(${b}deg)`; });
+}
+
+/* ---------------- home: today + chart ---------------- */
+function todayStrip() {
+ const exam = daysTo("2027-05-03T09:00:00+05:30"), trc = daysTo("2027-11-14T00:00:00+07:00");
+ const trcPct = Math.max(0, Math.min(100, trc / 704 * 100));
+ const op = D.stats.watching.length ? D.stats.watching[0] : null;
+ $("#today").innerHTML = `
+  <div class="chip"><span class="k">Shehansa's exams</span><span class="v num">${exam}<small>days</small></span><span class="s">First paper: Psychology, 3 May 2027</span></div>
+  <div class="chip"><span class="k">Residence card</span><span class="v num">${trc}<small>days left</small></span><div class="meter"><i class="${trc < 60 ? "bad" : trc < 120 ? "warn" : ""}" style="width:${trcPct}%"></i></div><span class="s">Valid until 14 Nov 2027</span></div>
+  <div class="chip"><span class="k">On the Grand Line</span><span class="v" style="font-size:20px;line-height:1.15">One Piece</span><span class="s">Third rewatch, now in Wano${op ? ` · also ${esc(op.t)} ${esc(op.p)}` : ""}</span></div>`;
+}
+const COUNTS = {
+ workshop: `${WORK.length} sites · ${DOCS.length} guides · ${CHATS.length} sessions`,
+ grandline: `${D.folders.length} character folders · ${D.crew.length} wanted posters`,
+ vault: `${D.vault.length} cards · ${D.lab.length} special editions`,
+ rabbithole: `${D.cases.length} case files`,
+ sanctuary: `Behold · Scarlet Thread · Nangi`,
+ boards: `${D.boards.length} Pinterest boards`,
+ log: `Bounty, goals, your links`,
+};
+const ISLE_PIC = {
+ workshop: () => D.plan, grandline: () => strawhats ? strawhats.pics[0] : D.wall[0], vault: () => D.lab[0] && D.lab[0].img,
+ rabbithole: () => ((D.cases.find(c => c.id === "zodiac-killer" && c.img) || D.cases.find(c => c.img) || {}).img) || D.sites.story,
+ sanctuary: () => D.sites.behold, log: () => D.me.full || D.me.face, boards: () => D.boards[0] && D.boards[0].pics[0],
+};
+function renderChart() {
+ const [pid, why] = pointed();
+ $("#needle-note").innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.5" fill="#141416" stroke="#f3c969" stroke-width="1.2"/><g style="transform-origin:12px 12px;transform:rotate(${ISLE[pid].b}deg)"><path d="M12 4 13.6 12h-3.2Z" fill="#e5483b"/><path d="M12 20 13.6 12h-3.2Z" fill="#a1a1a6"/></g></svg><span>The needle points to <b>${esc(ISLE[pid].name)}</b>. ${esc(why)}</span>`;
+ $("#isles").innerHTML = ISLES.map(i => `<a class="isle${i.id === pid ? " pointed" : ""}" href="#${i.id}" style="--acc:${i.acc}">
+  <span class="isle-pic"><img src="${ISLE_PIC[i.id]() || ""}" alt="" loading="lazy" decoding="async"${i.id === "workshop" ? ' style="object-position:50% 12%;background:#eef0ec"' : i.id === "sanctuary" ? ' style="object-fit:contain;background:#120c05;padding:14%"' : i.id === "rabbithole" ? ' style="filter:grayscale(1) contrast(1.3) brightness(.7)"' : ""}></span>
+  <span class="here">The needle points here</span><span class="in">Island ${ISLES.indexOf(i) + 1}</span><h3>${esc(i.name)}</h3><span class="tg">${esc(i.tag)}</span><span class="ct">${esc(COUNTS[i.id])}</span></a>`).join("");
+ requestAnimationFrame(drawRoute);
+}
+let routeLen = 0, shipT = 0, shipRaf = 0;
+function drawRoute() {
+ const box = $("#chart-box"), path = $("#route-path"); if (!box.offsetParent) return;
+ const br = box.getBoundingClientRect();
+ const pts = $$(".isle-pic", box).map(p => { const r = p.getBoundingClientRect(); return [r.left - br.left + r.width / 2, r.top - br.top + r.height / 2]; });
+ if (pts.length < 2) return;
+ let d = `M${pts[0][0]},${pts[0][1]}`;
+ for (let k = 1; k < pts.length; k++) {
+  const [x0, y0] = pts[k - 1], [x1, y1] = pts[k], my = (y0 + y1) / 2;
+  d += ` C${x0},${my + (y1 > y0 ? 40 : -40)} ${x1},${my - (y1 > y0 ? 40 : -40)} ${x1},${y1}`;
+ }
+ path.setAttribute("d", d);
+ $("#route").setAttribute("viewBox", `0 0 ${br.width} ${br.height}`);
+ routeLen = path.getTotalLength();
+ if (!shipRaf) sail();
+}
+function sail() {
+ const ship = $("#ship"), path = $("#route-path");
+ const step = () => {
+  shipRaf = 0;
+  if (!$("#v-home").classList.contains("on") || !routeLen) return;
+  shipT = (shipT + (RM ? 0 : 0.0006)) % 1;
+  const p = path.getPointAtLength(shipT * routeLen);
+  ship.style.transform = `translate(${p.x}px,${p.y}px)`;
+  if (!RM) shipRaf = requestAnimationFrame(step);
+ };
+ step();
+}
+addEventListener("resize", () => { if ($("#v-home").classList.contains("on")) requestAnimationFrame(drawRoute); });
+
+/* ---------------- grand line ---------------- */
+function renderFolders(filter) {
+ const list = D.folders.filter(f => filter === "all" || (filter === "op") === (f.series === "One Piece"));
+ $("#folder-grid").innerHTML = list.map(f => {
+  const p = f.pics, a = p[2] || p[1] || p[0], b = p[1] || p[0];
+  return `<button class="folder" type="button" data-id="${f.id}" style="--tint:${f.tint || "var(--gold)"}"><span class="stack"><img src="${a}" alt="" loading="lazy" decoding="async"><img src="${b}" alt="" loading="lazy" decoding="async"><img src="${p[0]}" alt="" loading="lazy" decoding="async"><span class="tab-band num">${p.length} ${p.length === 1 ? "photo" : "photos"}</span></span><span class="fn"><i></i>${esc(f.name)}</span><span class="fs">${esc(f.series)}${f.line ? " · " + esc(f.line) : ""}</span></button>`;
+ }).join("");
+}
+renderFolders("all");
+$$("#v-grandline .fbtn").forEach(b => b.onclick = () => { $$("#v-grandline .fbtn").forEach(x => x.setAttribute("aria-pressed", x === b)); renderFolders(b.dataset.f); });
+$("#crew-total").textContent = fmtB(D.total);
+$("#crew-rail").innerHTML = D.crew.map(c => `<button class="poster" type="button" data-id="${c.id}" aria-label="${esc(c.name)}, bounty ${c.bounty.toLocaleString("en-US")} berries"><span class="w">WANTED</span><span class="pp"><img src="${c.img}" alt="" loading="lazy" decoding="async"></span><span class="doa">DEAD OR ALIVE</span><span class="nm">${esc(c.name)}</span><span class="bty">฿ ${c.bounty.toLocaleString("en-US")}-</span><span class="wd">${esc(c.role)} · ${esc(c.word)}</span></button>`).join("");
+const S = D.stats;
+$("#gl-stats").innerHTML = `<span><b>${S.animeDone}</b> anime finished</span><span><b>${S.mangaReading}</b> manga on the go</span><span><b>${S.tv}</b> TV shows</span><span><b>${D.folders.length}</b> character folders</span>`;
+$("#stats").innerHTML = [[S.animeDone, "anime finished"], [S.animeNow, "anime on the go"], [S.mangaReading, "manga reading"], [S.mangaDone, "manga finished"], [S.tv, "TV shows watched"], [S.cards, "cards collected"]].map(([n, l]) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`).join("");
+$("#now").innerHTML = `<li>One Piece<span>Wano · 3rd rewatch</span></li>` + S.watching.map(w => `<li>${esc(w.t)}<span>${esc(w.p)}</span></li>`).join("");
+$("#top10").innerHTML = S.top.map(t => `<li>${esc(t)}</li>`).join("");
+$("#log-note").textContent = S.updated ? `From your Grand Archive shelf, last updated ${new Date(S.updated + "T12:00:00").toLocaleDateString("en-GB", {day:"numeric", month:"long", year:"numeric"})}.` : "";
+
+/* folder gallery */
+const sheet = $("#sheet"), strip = $("#strip");
+let back = null;
+function openSheet(el) { back = document.activeElement; el.hidden = false; document.body.style.overflow = "hidden"; el.querySelector("[data-close]").focus(); }
+function closeSheets() { $$(".sheet").forEach(s => s.hidden = true); document.body.style.overflow = ""; back && back.focus && back.focus(); }
+$$("[data-close]").forEach(b => b.onclick = closeSheets);
+function openFolder(id) {
+ const f = D.folders.find(x => x.id === id); if (!f) return;
+ $("#sheet-series").textContent = f.series; $("#sheet-title").textContent = f.name;
+ const info = [];
+ if (f.role) info.push(esc(f.role));
+ if (f.word) info.push(`<b>${esc(f.word)}</b>`);
+ if (f.bounty) info.push(fmtB(f.bounty));
+ if (f.dream) info.push(esc(f.dream));
+ if (!f.role && f.line) info.push(esc(f.line));
+ $("#sheet-info").innerHTML = info.map(x => `<span>${x}</span>`).join("");
+ $("#sheet-lesson").textContent = f.lesson || "";
+ strip.innerHTML = f.pics.map((p, i) => `<figure><img src="${p}" alt="${esc(f.name)}, picture ${i + 1} of ${f.pics.length}" decoding="async"></figure>`).join("");
+ strip.scrollLeft = 0; openSheet(sheet); updCount();
+}
+function updCount() {
+ const figs = [...strip.children]; if (!figs.length) return 0;
+ const mid = strip.scrollLeft + strip.clientWidth / 2;
+ let i = figs.findIndex(f => f.offsetLeft + f.offsetWidth > mid); if (i < 0) i = figs.length - 1;
+ $("#sh-count").textContent = `${i + 1} / ${figs.length}`; return i;
+}
+function step(d) { const figs = [...strip.children]; if (!figs.length) return; const i = Math.max(0, Math.min(figs.length - 1, updCount() + d)); strip.scrollTo({left: figs[i].offsetLeft - (strip.clientWidth - figs[i].offsetWidth) / 2, behavior: RM ? "auto" : "smooth"}); }
+strip.addEventListener("scroll", () => requestAnimationFrame(updCount), {passive: true});
+$("#folder-grid").addEventListener("click", e => { const b = e.target.closest(".folder"); if (b) openFolder(b.dataset.id); });
+$("#crew-rail").addEventListener("click", e => { const p = e.target.closest(".poster"); if (p && D.folders.some(f => f.id === p.dataset.id)) openFolder(p.dataset.id); });
+$("#sh-prev").onclick = () => step(-1); $("#sh-next").onclick = () => step(1);
+
+/* ---------------- card vault ---------------- */
+const RANK = {SEC:0, L:1, SR:2, P:3, R:4, UC:5, C:6, DON:7};
+const RNAME = {SEC:"Secret rare", L:"Leader", SR:"Super rare", P:"Promo", R:"Rare", UC:"Uncommon", C:"Common", DON:"DON!!"};
+const COLORS = {Red:"#e5483b", Green:"#3fae6a", Blue:"#3d8bd9", Purple:"#9b5de5", Black:"#2b2b2b", Yellow:"#f2c94c"};
+const cards = D.vault.slice().sort((a, b) => (RANK[a.rarity] ?? 9) - (RANK[b.rarity] ?? 9) || a.no.localeCompare(b.no));
+const cnt = r => cards.filter(c => c.rarity === r).length;
+const CF = [["all", "All"], ["SEC", "Secret rares"], ["L", "Leaders"], ["SR", "Super rares"], ["R", "Rares"], ["low", "Uncommon & common"], ["DON", "DON!!"]];
+$("#card-filters").innerHTML = CF.map(([k, l], i) => `<button class="fbtn" type="button" data-cf="${k}" aria-pressed="${i === 0}">${l}</button>`).join("");
+$("#vault-stats").innerHTML = `<span><b>${cards.length}</b> cards</span><span><b>${cnt("SEC")}</b> secret rares</span><span><b>${cnt("L")}</b> leaders</span><span><b>${cnt("SR")}</b> super rares</span><span><b>${D.lab.length}</b> special editions</span>`;
+$("#fan").innerHTML = D.lab.slice(0, 3).map(l => `<img src="${l.img}" alt="">`).join("");
+let shown = cards;
+function renderCards(f) {
+ shown = cards.filter(c => f === "all" || (f === "low" ? ["UC", "C", "P"].includes(c.rarity) : c.rarity === f));
+ $("#cwall").innerHTML = shown.map((c, i) => `<button class="tc" type="button" data-i="${i}"><span class="face"><img src="${c.t}" alt="${esc(c.name)}, ${esc(c.no)}" loading="lazy" decoding="async"></span><span class="rr ${esc(c.rarity)}">${esc(c.rarity)}</span><span class="cn"><b>${esc(c.name)}</b> · ${esc(c.no)}</span></button>`).join("");
+}
+renderCards("all");
+$("#card-filters").addEventListener("click", e => { const b = e.target.closest("[data-cf]"); if (!b) return; $$("#card-filters .fbtn").forEach(x => x.setAttribute("aria-pressed", x === b)); renderCards(b.dataset.cf); });
+const cwall = $("#cwall");
+cwall.addEventListener("pointermove", e => {
+ const t = e.target.closest(".tc"); if (!t || e.pointerType !== "mouse" || RM) return;
+ const r = t.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
+ const f = t.querySelector(".face"); f.style.setProperty("--ry", (x * 16).toFixed(1) + "deg"); f.style.setProperty("--rx", (-y * 12).toFixed(1) + "deg");
+});
+cwall.addEventListener("pointerout", e => { const t = e.target.closest(".tc"); if (t && !t.contains(e.relatedTarget)) { const f = t.querySelector(".face"); f.style.removeProperty("--rx"); f.style.removeProperty("--ry"); } });
+let ci = 0;
+function showCard(i) {
+ ci = (i + shown.length) % shown.length; const c = shown[ci];
+ $("#cs-no").textContent = `${c.no} · ${RNAME[c.rarity] || c.rarity}`;
+ $("#cs-title").textContent = c.name;
+ const dl = [["Set", c.set], ["Kind", c.kind], ["Colour", (c.colors || []).map(k => `<span class="dot" style="background:${COLORS[k] || "#888"}"></span>${esc(k)}`).join(" ")],
+  ["Cost", c.cost], ["Power", c.power != null ? c.power.toLocaleString("en-US") : null], ["Counter", c.counter], ["Attribute", c.attr], ["Type", c.types], ["Crew", c.crew]]
+  .filter(([, v]) => v != null && v !== "" && v !== "-").map(([k, v]) => `<dt>${k}</dt><dd>${k === "Colour" ? v : esc(v)}</dd>`).join("");
+ $("#cardview").innerHTML = `<img class="big" src="${c.l || c.t}" alt="${esc(c.name)}, ${esc(c.no)}"><div><dl>${dl}</dl>${c.effect && c.effect !== "-" ? `<div class="eff">${esc(c.effect)}</div>` : ""}<p class="note">${c.rarity === "DON" ? "Your own photo of the card." : "Card face: Bandai's official image."}</p></div>`;
+ $("#cs-count").textContent = `${ci + 1} / ${shown.length}`;
+}
+cwall.addEventListener("click", e => { const t = e.target.closest(".tc"); if (!t) return; showCard(+t.dataset.i); openSheet($("#cardsheet")); });
+$("#cs-prev").onclick = () => showCard(ci - 1); $("#cs-next").onclick = () => showCard(ci + 1);
+$("#labs").innerHTML = D.lab.map((l, i) => `<div class="lab l${i}"><div class="face"><div class="art"><img src="${l.img}" alt="${esc(l.name)}, ${esc(l.chip)} card" loading="lazy" decoding="async"${i === 1 ? ' style="object-position:50% 35%"' : i === 3 ? ' style="object-position:50% 30%"' : ""}><div class="sheen"></div><span class="lchip">${esc(l.chip)}</span><div class="lnm"><div><b>${esc(l.name)}</b><small>${esc(l.sub)}</small></div><em>No. ${esc(l.no)}</em></div></div></div><p><b>${esc(l.chip.split(" · ")[0])}.</b> ${esc(l.move)}</p></div>`).join("");
+
+/* ---------------- rabbit hole ---------------- */
+const VERD = {debunked:"Debunked", unsolved:"Unsolved", true:"Actually true", unproven:"Unproven"};
+const CASE_F = [["all", "All files"], ["unsolved", "Unsolved"], ["true", "Actually true"], ["debunked", "Debunked"], ["unproven", "Unproven"], ["deep", "Deepest holes"]];
+$("#case-filters").innerHTML = CASE_F.map(([k, l], i) => `<button class="fbtn" type="button" data-vf="${k}" aria-pressed="${i === 0}">${l}</button>`).join("");
+const caseUrl = c => `${GH}Mysteries/story.html?id=${encodeURIComponent(c.id)}`;
+function renderCases(f) {
+ const list = D.cases.filter(c => f === "all" || (f === "deep" ? c.level >= 5 : c.verdict === f));
+ $("#cases").innerHTML = list.map(c => `<a class="case" href="${caseUrl(c)}" target="_blank" rel="noopener">
+  <span class="ph${c.img ? "" : " none"}">${c.img ? `<img src="${c.img}" alt="" loading="lazy" decoding="async">` : `<span>NO PHOTO ON FILE</span>`}<span class="no">CASE ${String(c.no).padStart(2, "0")}</span><span class="stampv ${c.verdict}">${VERD[c.verdict] || c.verdict}</span></span>
+  <span class="cb"><h3>${md(c.title)}</h3><p>${esc(c.hook)}</p><span class="mt"><span>${esc(c.year)}</span><span class="depth" title="Rabbit hole depth ${c.level} of 5">${[1,2,3,4,5].map(k => `<i class="${k <= c.level ? "on" : ""}" style="height:${4 + k * 1.6}px"></i>`).join("")}</span><span>${esc(c.mins)} min</span></span>
+  ${c.credit && c.credit.artist ? `<span class="cr">Photo: ${esc(c.credit.artist)}${c.credit.licence ? " · " + esc(c.credit.licence) : ""}</span>` : ""}</span></a>`).join("");
+}
+renderCases("all");
+$("#case-filters").addEventListener("click", e => { const b = e.target.closest("[data-vf]"); if (!b) return; $$("#case-filters .fbtn").forEach(x => x.setAttribute("aria-pressed", x === b)); renderCases(b.dataset.vf); });
+const caseImg = id => (D.cases.find(c => c.id === id && c.img) || {}).img;
+$("#cv-rh").src = caseImg("tunguska-event") || caseImg("dyatlov-pass") || "";
+$("#cv-ev").src = caseImg("zodiac-killer") || caseImg("jack-the-ripper") || "";
+$("#rand-case").onclick = () => { const c = D.cases[Math.floor(Math.random() * D.cases.length)]; const a = document.createElement("a"); a.href = caseUrl(c); a.target = "_blank"; a.rel = "noopener"; document.body.append(a); a.click(); a.remove(); };
+let typedDone = false;
+function typeIntro() {
+ if (typedDone) return; typedDone = true;
+ const el = $("#typed"), parts = ["Some of these were lies. ", "Some were never solved. ", "A few were true, and those are the ones that should keep you up at night."];
+ const full = parts.join("");
+ if (RM) { el.textContent = full; return; }
+ let n = 0;
+ const tick = () => { n += 1; el.innerHTML = esc(full.slice(0, n)).replace("never solved", '<span class="redact">never solved</span>') + '<span class="cur"></span>'; if (n < full.length) setTimeout(tick, full[n - 1] === "." ? 420 : 32); };
+ tick();
+}
+
+/* ---------------- sanctuary ---------------- */
+const exam = daysTo("2027-05-03T09:00:00+05:30");
+$("#nangi-note").textContent = `Psychology, Business and Law, May/June 2027. The first paper is in ${exam} days.`;
+
+/* ---------------- captain's log ---------------- */
+function docRow(name, iso, totalDays, note) {
+ const d = daysTo(iso), pct = Math.max(0, Math.min(100, d / totalDays * 100)), cls = d < 60 ? "bad" : d < 120 ? "warn" : "";
+ const when = new Date(iso).toLocaleDateString("en-GB", {day:"numeric", month:"short", year:"numeric"});
+ const left = d > 365 ? `${(d / 365).toFixed(1)} years left` : `${d} days left`;
+ return `<li><div class="dl"><b>${name}</b><span>Valid until ${when} · ${left}</span></div><div class="meter"><i class="${cls}" style="width:${pct}%"></i></div><span class="note">${note}</span></li>`;
+}
+$("#docs").innerHTML = docRow("Temporary Residence Card", "2027-11-14T00:00:00+07:00", 704, "Start the renewal with HR about two months before it ends.") +
+ docRow("Passport", "2032-03-10T00:00:00+05:30", 3653, "Most countries want six months of validity left when you travel.");
+$$(".copy").forEach(b => b.onclick = async () => {
+ const v = b.dataset.copy, old = b.textContent;
+ try { await navigator.clipboard.writeText(v); b.textContent = "Copied"; b.classList.add("done"); setTimeout(() => { b.textContent = old; b.classList.remove("done"); }, 1400); }
+ catch { const r = document.createRange(); r.selectNodeContents(b); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+});
+
+/* ---------------- saved state: synced through the account, else this device ---------------- */
+const LS = "logpose-v1";
+let state = {boards:{}, links:[], goals:null};
+let ref = null, writing = Promise.resolve(), timer = null;
+try { const s = JSON.parse(localStorage.getItem(LS) || "null"); if (s) state = Object.assign(state, s); } catch {}
+function persist() {
+ try { localStorage.setItem(LS, JSON.stringify(state)); } catch {}
+ renderBounty();
+ if (!ref) return;
+ clearTimeout(timer);
+ timer = setTimeout(() => { const body = JSON.parse(JSON.stringify(state)); writing = writing.then(() => ref.set(body)).catch(() => setSync(false, "Couldn't sync. Saved on this device.")); }, 400);
+}
+function setSync(on, text) { const el = $("#sync"); el.classList.toggle("on", on); el.querySelector("span").textContent = text || (on ? "Synced to your account, on every device" : "Saved on this device"); }
+async function initSync() {
+ try {
+  if (!window.claude || !window.claude.use) return;
+  const [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
+  if (!db || !user) return;
+  const id = await user.id(); if (!id) return;
+  ref = db.doc("data/users/" + id + "/deck");
+  let first = true;
+  ref.onSnapshot(snap => {
+   if (snap.exists) {
+    const d = snap.data();
+    state = {boards: Object.assign({}, d.boards || {}), links: Array.isArray(d.links) ? d.links.slice() : [], goals: Array.isArray(d.goals) ? d.goals.slice() : null};
+    try { localStorage.setItem(LS, JSON.stringify(state)); } catch {}
+    renderSaved();
+   } else if (first && (state.links.length || state.goals || Object.keys(state.boards).length)) persist();
+   if (first) { first = false; setSync(true); }
+  }, () => { ref = null; setSync(false); });
+ } catch { ref = null; }
+}
+
+/* bounty: everything you've built and done */
+const BUILT = {repos: 11, builds: 12};
+function bounty() {
+ const done = (state.goals || []).filter(g => g.done).length;
+ const parts = [["11 repositories", BUILT.repos * 1e8], ["12 Claude builds", BUILT.builds * 5e7], [`${D.vault.length} cards`, D.vault.length * 1e6], [`${done} goal${done === 1 ? "" : "s"} done`, done * 3e7], [`${state.links.length} links added`, state.links.length * 5e6]];
+ return {total: parts.reduce((a, p) => a + p[1], 0), parts};
+}
+let shownB = 0;
+function renderBounty(animate) {
+ const b = bounty();
+ $("#bty-break").innerHTML = b.parts.map(([k, v]) => `<span>${esc(k)}<b>${fmtB(v)}</b></span>`).join("") + `<span style="border-top:1px solid var(--line);padding-top:6px;margin-top:4px;color:var(--fg)">Total<b style="color:var(--gold)">${fmtB(b.total)}</b></span>`;
+ $("#bty-stats").innerHTML = `<span>Bounty <b>${fmtB(b.total)}</b></span><span><b>${(state.goals || []).filter(g => g.done).length}</b> goals done</span>`;
+ const el = $("#wanted-bty");
+ if (!animate || RM) { el.textContent = `${fmtB(b.total)}-`; shownB = b.total; return; }
+ const from = 0, t0 = performance.now();
+ const run = t => { const k = Math.min(1, (t - t0) / 1600), e = 1 - Math.pow(1 - k, 3); el.textContent = `${fmtB(from + (b.total - from) * e)}-`; if (k < 1) requestAnimationFrame(run); };
+ requestAnimationFrame(run);
+}
+
+/* boards */
+function boardCard(b, i) {
+ const p = b.pics, n = p.length;
+ return `<a class="bcard" href="${esc(b.u)}" target="_blank" rel="noopener"><span class="bcol">${p.slice(0, 3).map(x => `<img src="${x}" alt="" loading="lazy" decoding="async">`).join("")}</span>
+  <span class="bmeta"><span class="pin" aria-hidden="true">P</span><span class="bname">${esc(b.name)}</span><span class="bopen">Open board ↗</span></span></a>`;
+}
+function renderBoards() {
+ const extra = state.links.filter(l => l.g === "Pinterest").map(l => ({u:l.u, name:l.t, pics:D.boards[0] ? D.boards[0].pics.slice(3, 6) : []}));
+ const all = D.boards.concat(extra);
+ $("#board-grid").innerHTML = all.map(boardCard).join("");
+ $("#pin-rail").innerHTML = all.map(b => `<a class="pcard" href="${esc(b.u)}" target="_blank" rel="noopener"><img src="${b.pics[0] || ""}" alt="" loading="lazy" decoding="async"><span><b>${esc(b.name)}</b><i>Pinterest ↗</i></span></a>`).join("");
+}
+/* links */
+function renderLinks() {
+ const box = $("#my-links");
+ if (!state.links.length) { box.innerHTML = `<p class="empty">Nothing here yet. Add a link above, like a Google Sheet, a course page or a new Pinterest board, and it shows up here and in the Log Pose search.</p>`; return; }
+ box.innerHTML = state.links.map((l, i) => `<div class="row"><span class="ic">${IC.link}</span><div class="row-x"><a class="row-t stretch" href="${esc(l.u)}" target="_blank" rel="noopener">${esc(l.t)}</a><div class="row-d">${esc(l.g)} · ${esc(hostOf(l.u))}</div></div><button class="del" type="button" data-del="${i}">Remove</button></div>`).join("");
+}
+$("#my-links").addEventListener("click", e => {
+ const b = e.target.closest("[data-del]"); if (!b) return;
+ if (b.dataset.armed) { state.links.splice(+b.dataset.del, 1); persist(); renderSaved(); }
+ else { b.dataset.armed = 1; b.textContent = "Tap again to remove"; setTimeout(() => { if (b.isConnected) { delete b.dataset.armed; b.textContent = "Remove"; } }, 3000); }
+});
+$("#addform").addEventListener("submit", e => {
+ e.preventDefault();
+ const t = $("#al-title").value.trim(); let u = $("#al-url").value.trim(); const g = $("#al-group").value, msg = $("#form-msg");
+ msg.className = "form-msg";
+ if (u && !/^https?:\/\//i.test(u)) u = "https://" + u;
+ let ok = false; try { const x = new URL(u); ok = /^https?:$/.test(x.protocol) && x.hostname.includes("."); } catch {}
+ if (!ok) { msg.textContent = "That link doesn't look right. Paste the full address, starting with https://"; msg.classList.add("err"); $("#al-url").focus(); return; }
+ state.links.push({t: t || hostOf(u), u, g}); persist(); renderSaved();
+ $("#al-title").value = ""; $("#al-url").value = ""; msg.textContent = `Added to ${g}.`;
+});
+/* goals */
+const goals = () => state.goals || DEFAULT_GOALS.map(g => ({...g}));
+function renderGoals() { $("#goals").innerHTML = goals().map((g, i) => `<li><input type="checkbox" id="g${i}" data-g="${i}" ${g.done ? "checked" : ""}><label for="g${i}">${esc(g.t)}</label><button class="del" type="button" data-gd="${i}" aria-label="Remove goal">✕</button></li>`).join(""); }
+$("#goals").addEventListener("change", e => { const i = e.target.dataset.g; if (i == null) return; const g = goals(); g[i].done = e.target.checked; state.goals = g; persist(); renderGoals(); });
+$("#goals").addEventListener("click", e => { const b = e.target.closest("[data-gd]"); if (!b) return; const g = goals(); g.splice(+b.dataset.gd, 1); state.goals = g; persist(); renderGoals(); });
+$("#goal-add").addEventListener("submit", e => { e.preventDefault(); const v = $("#goal-in").value.trim(); if (!v) return; const g = goals(); g.push({t:v, done:false}); state.goals = g; $("#goal-in").value = ""; persist(); renderGoals(); });
+function renderSaved() { renderBoards(); renderLinks(); renderGoals(); renderBounty(); }
+renderSaved();
+initSync();
+
+/* ---------------- Log Pose: dial + search ---------------- */
+const pal = $("#pal"), q = $("#pal-q"), plist = $("#pal-list");
+$("#ticks").innerHTML = Array.from({length: 72}, (_, k) => { const a = k * 5 * Math.PI / 180, r1 = k % 6 ? 186 : 178; return `<line x1="${200 + Math.sin(a) * r1}" y1="${200 - Math.cos(a) * r1}" x2="${200 + Math.sin(a) * 194}" y2="${200 - Math.cos(a) * 194}" stroke="rgba(243,201,105,${k % 6 ? .35 : .8})" stroke-width="${k % 6 ? 1 : 2}"/>`; }).join("");
+$("#isl-btns").innerHTML = ISLES.map(i => { const a = i.b * Math.PI / 180, R = 35; return `<a class="isl" href="#${i.id}" data-isl="${i.id}" style="left:${50 + Math.sin(a) * R}%;top:${50 - Math.cos(a) * R}%">${esc(i.short)}<small>${esc(DIAL[i.id])}</small></a>`; }).join("");
+let curBearing = 0;
+function aim(id) {
+ const target = ISLE[id].b; let delta = ((target - curBearing) % 360 + 540) % 360 - 180; curBearing += delta;
+ $("#big-ndl").style.transform = `rotate(${curBearing}deg)`;
+ $$(".isl").forEach(b => b.classList.toggle("hi", b.dataset.isl === id));
+}
+$("#isl-btns").addEventListener("pointerover", e => { const b = e.target.closest(".isl"); if (b) aim(b.dataset.isl); });
+$("#isl-btns").addEventListener("focusin", e => { const b = e.target.closest(".isl"); if (b) aim(b.dataset.isl); });
+$("#isl-btns").addEventListener("click", () => closePal(true));
+function index() {
+ const out = [], add = (t, d, u, g, act) => out.push({t, d, u, g, act, k: (t + " " + d + " " + g).toLowerCase()});
+ ISLES.forEach(i => add(i.name, i.tag, "#" + i.id, "Island", () => { location.hash = i.id; }));
+ WORK.forEach(s => add(s.t, s.d, s.u, "Workshop")); DOCS.forEach(s => add(s.t, s.d, s.u, "Guide")); CHATS.forEach(s => add(s.t, s.d, s.u, "Session"));
+ WORK_DRIVE.concat(GL_DRIVE).forEach(s => add(s.t, s.d, s.u, "Drive"));
+ GL.concat(GL_OLD, WORK_OLD).forEach(s => add(s.t, s.d, s.u, "Grand Line"));
+ FAITH.concat(NANGI).forEach(s => add(s.t, s.d, s.u, "Sanctuary")); ME.forEach(s => add(s.t, s.d, s.u, "Log"));
+ D.folders.forEach(f => add(f.name, f.series + (f.word ? " · " + f.word : ""), "#grandline", "Folder", () => { location.hash = "grandline"; setTimeout(() => openFolder(f.id), 350); }));
+ D.cases.forEach(c => add(c.title.replace(/\*/g, ""), `${VERD[c.verdict]} · ${c.year}`, caseUrl(c), "Case"));
+ cards.forEach((c, i) => add(c.name, `${c.no} · ${RNAME[c.rarity] || c.rarity}`, "#vault", "Card", () => { location.hash = "vault"; setTimeout(() => { renderCards("all"); $$("#card-filters .fbtn").forEach((x, k) => x.setAttribute("aria-pressed", k === 0)); showCard(i); openSheet($("#cardsheet")); }, 350); }));
+ D.lab.forEach(l => add(`${l.name} · ${l.chip}`, "Special edition", "#vault", "Card", () => { location.hash = "vault"; }));
+ D.boards.forEach(b => add(b.name, "Pinterest board", b.u, "Board"));
+ state.links.forEach(l => add(l.t, hostOf(l.u), l.u, l.g));
+ TOOLS.forEach(s => add(s.t, hostOf(s.u), s.u, "App"));
+ return out;
+}
+let hits = [], sel = 0;
+function search() {
+ const words = q.value.toLowerCase().split(/\s+/).filter(Boolean);
+ $("#dial-wrap").hidden = !!words.length; plist.hidden = !words.length;
+ if (!words.length) return;
+ hits = index().filter(x => words.every(w => x.k.includes(w))).slice(0, 40); sel = 0; drawHits();
+}
+function drawHits() {
+ if (!hits.length) { plist.innerHTML = `<p class="pal-empty">Nothing matches “${esc(q.value)}”. Try a site, a character, a card or a case.</p>`; return; }
+ plist.innerHTML = hits.map((h, i) => `<a href="${esc(h.u)}" ${h.act || h.u[0] === "#" ? "" : 'target="_blank" rel="noopener"'} role="option" id="ph${i}" data-i="${i}" aria-selected="${i === sel}"><div class="x"><div class="t">${esc(h.t)}</div><div class="d">${esc(h.d)}</div></div><span class="g">${esc(h.g)}</span></a>`).join("");
+ q.setAttribute("aria-activedescendant", "ph" + sel);
+ const s = plist.children[sel]; s && s.scrollIntoView({block:"nearest"});
+}
+function openPal() {
+ back = document.activeElement; pal.hidden = false; document.body.style.overflow = "hidden"; q.value = ""; search();
+ const [pid, why] = pointed(); curBearing = 0; $("#big-ndl").style.transform = "rotate(0deg)";
+ $("#dial-note").innerHTML = `The needle points to <b>${esc(ISLE[pid].name)}</b>. ${esc(why)}`;
+ setTimeout(() => aim(pid), RM ? 0 : 200);
+ if (matchMedia("(pointer:fine)").matches) q.focus();
+}
+function closePal(nav) { pal.hidden = true; document.body.style.overflow = ""; if (!nav && back && back.focus) back.focus(); }
+plist.addEventListener("click", e => { const a = e.target.closest("a"); if (!a) return; const h = hits[+a.dataset.i]; if (h && h.act) { e.preventDefault(); closePal(true); h.act(); } else closePal(true); });
+q.addEventListener("input", search);
+q.addEventListener("keydown", e => {
+ if (e.key === "ArrowDown") { e.preventDefault(); sel = Math.min(hits.length - 1, sel + 1); drawHits(); }
+ else if (e.key === "ArrowUp") { e.preventDefault(); sel = Math.max(0, sel - 1); drawHits(); }
+ else if (e.key === "Enter") { e.preventDefault(); const a = plist.children[sel]; a && a.click && a.click(); }
+});
+$("#pal-x").onclick = () => closePal(); $("#pal-close").onclick = () => closePal();
+$$("[data-pose]").forEach(b => b.onclick = openPal);
+document.addEventListener("keydown", e => {
+ if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); pal.hidden ? openPal() : closePal(); return; }
+ if (e.key === "Escape") { if (!pal.hidden) closePal(); else closeSheets(); return; }
+ if (!$("#sheet").hidden && (e.key === "ArrowRight" || e.key === "ArrowLeft")) { step(e.key === "ArrowRight" ? 1 : -1); return; }
+ if (!$("#cardsheet").hidden && (e.key === "ArrowRight" || e.key === "ArrowLeft")) { showCard(ci + (e.key === "ArrowRight" ? 1 : -1)); return; }
+ if (e.key === "/" && pal.hidden && !/input|textarea|select/i.test(document.activeElement.tagName)) { e.preventDefault(); openPal(); }
+});
+
+/* ---------------- routing between islands ---------------- */
+const VIEWS = ["home"].concat(ISLES.map(i => i.id));
+let started = false;
+function route() {
+ let id = location.hash.slice(1);
+ if (id === "chart") { id = "home"; }
+ if (!VIEWS.includes(id)) id = "home";
+ $$(".view").forEach(v => v.classList.toggle("on", v.dataset.view === id));
+ $$("[data-nav]").forEach(a => a.toggleAttribute("aria-current", a.dataset.nav === id) || a.removeAttribute("aria-current"));
+ $$("[data-nav]").forEach(a => { if (a.dataset.nav === id) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+ $$(".tabs [data-tab]").forEach(t => t.classList.toggle("on", t.dataset.tab === id));
+ setNeedle(id === "home" ? pointed()[0] : id);
+ closeSheets();
+ if (location.hash.slice(1) === "chart") { setTimeout(() => $("#chart").scrollIntoView({behavior: RM ? "auto" : "smooth"}), 60); }
+ else if (started) scrollTo(0, 0);
+ started = true;
+ if (id === "home") { renderChart(); lightOne(); }
+ if (id === "rabbithole") typeIntro();
+ if (id === "log") renderBounty(true);
+ const isle = ISLE[id];
+ document.title = isle ? `${isle.short} · Log Pose` : "Yohan's Log Pose";
+}
+addEventListener("hashchange", route);
+
+/* bar */
+const bar = $("#bar");
+const onScroll = () => bar.classList.toggle("solid", scrollY > 40);
+addEventListener("scroll", onScroll, {passive: true}); onScroll();
+
+tick(); setInterval(tick, 20000);
+todayStrip();
+route();
+if (!RM) { setInterval(lightOne, 5200); setInterval(swapOne, 1700); setInterval(rotate, 9000); }
+})();
+</script>
+
+<script>if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}</script>
+</body>
+</html>
